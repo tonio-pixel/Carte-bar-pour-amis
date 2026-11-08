@@ -16,7 +16,7 @@
 
     <div class="w-full md:w-1/3 p-6 bg-gray-800 shadow-xl overflow-y-auto flex flex-col gap-4 z-20">
         <h1 class="text-2xl font-bold text-pink-500 mb-2">📍 Meet at the Bar</h1>
-        <p class="text-sm text-gray-400 mb-4">Saisissez jusqu'à 5 adresses pour trouver le bar idéal à mi-chemin.</p>
+        <p class="text-sm text-gray-400 mb-4">Saisissez des adresses pour trouver le point central et les vrais bars autour.</p>
         
         <div id="address-inputs" class="flex flex-col gap-3">
             <input type="text" placeholder="Adresse 1 (ex: Gare de Lyon, Paris)" class="p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:border-pink-500" value="Gare de Lyon, Paris">
@@ -27,9 +27,9 @@
         </div>
 
         <button id="calculate-btn" class="mt-4 bg-pink-600 hover:bg-pink-700 text-white font-bold py-3 px-4 rounded-lg transition-colors">
-            Calculer le point de rendez-vous
+            Trouver le point de rendez-vous
         </button>
-        <div id="status" class="text-sm text-pink-400 mt-2 hidden">Calcul et géocodage en cours...</div>
+        <div id="status" class="text-sm text-pink-400 mt-2 hidden">Calcul et recherche des bars en temps réel...</div>
     </div>
 
     <div class="w-full md:w-2/3 h-full relative">
@@ -40,7 +40,6 @@
     <script>
         const map = L.map('map').setView([48.8566, 2.3522], 13);
 
-        // LE FOND DE CARTE GRATUIT EST ICI
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
             attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
             subdomains: 'abcd',
@@ -69,17 +68,25 @@
             return null;
         }
 
-        const mockBars = [
-            { nom: "Le Pixel", type: "Bar d'application & Mixologie", prix: "4.50€", event: "Soirée jeux de plateau & Création de mocktails", latOffset: 0.002, lonOffset: 0.002 },
-            { nom: "Oroute / Atelier B", type: "Foodtruck sédentarisé (Spécialité Belge)", prix: "6.00€", event: "Dégustation : Boulets liégeois au blanc de bœuf", latOffset: -0.001, lonOffset: 0.003 },
-            { nom: "La Mine", type: "Pub atypique", prix: "7.00€", event: "Exposition de minéraux rares et musique live", latOffset: 0.003, lonOffset: -0.002 },
-            { nom: "Le QG du Campus", type: "Brasserie classique", prix: "5.50€", event: "Happy Hour prolongé", latOffset: -0.002, lonOffset: -0.001 }
-        ];
+        // Nouvelle fonction : Récupération des vrais bars via Overpass API
+        async function fetchRealBars(lat, lon) {
+            const query = `[out:json];node(around:1000,${lat},${lon})["amenity"~"bar|pub"];out;`;
+            const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                return data.elements;
+            } catch (error) {
+                console.error("Erreur de récupération des bars:", error);
+                return [];
+            }
+        }
 
         document.getElementById('calculate-btn').addEventListener('click', async () => {
             const inputs = document.querySelectorAll('#address-inputs input');
             const status = document.getElementById('status');
             status.classList.remove('hidden');
+            status.innerText = "Géocodage des adresses...";
             
             userMarkers.clearLayers();
             barMarkers.clearLayers();
@@ -104,19 +111,35 @@
                 let avgLon = coords.reduce((sum, c) => sum + c.lon, 0) / coords.length;
                 map.setView([avgLat, avgLon], 15);
                 
-                mockBars.forEach(bar => {
-                    let barLat = avgLat + bar.latOffset;
-                    let barLon = avgLon + bar.lonOffset;
-                    let popupContent = `
-                        <div class="text-sm min-w-[200px]">
-                            <h3 class="font-bold text-pink-400 text-base border-b border-gray-600 pb-1 mb-2">${bar.nom}</h3>
-                            <p class="mb-1"><b>Type :</b> ${bar.type}</p>
-                            <p class="mb-1"><b>Prix pinte :</b> ${bar.prix}</p>
-                            <p class="text-pink-300 mt-2">✨ <b>En ce moment :</b> ${bar.event}</p>
-                        </div>
-                    `;
-                    L.marker([barLat, barLon], {icon: barIcon}).bindPopup(popupContent).addTo(barMarkers);
-                });
+                status.innerText = "Recherche des établissements réels (1km)...";
+                const realBars = await fetchRealBars(avgLat, avgLon);
+
+                if (realBars.length === 0) {
+                    alert("Aucun bar répertorié dans un rayon de 1km autour du point central.");
+                } else {
+                    realBars.forEach(bar => {
+                        const tags = bar.tags;
+                        if (!tags || !tags.name) return; // Ignore les établissements sans nom
+
+                        // Extraction des données réelles
+                        const nom = tags.name;
+                        const horaires = tags.opening_hours ? tags.opening_hours.replace(/;/g, '<br>') : "<span class='text-gray-400 italic'>Non renseigné</span>";
+                        const happyHour = tags.happy_hours || "<span class='text-gray-400 italic'>Non renseigné dans l'Open Data</span>";
+                        const prix = tags.charge || tags.price || "<span class='text-gray-400 italic'>Voir sur place</span>";
+                        const type = tags.amenity === 'pub' ? 'Pub' : 'Bar';
+
+                        let popupContent = `
+                            <div class="text-sm min-w-[220px]">
+                                <h3 class="font-bold text-pink-400 text-base border-b border-gray-600 pb-1 mb-2">${nom}</h3>
+                                <p class="mb-1 text-xs text-gray-300 uppercase">${type}</p>
+                                <p class="mb-2 mt-2"><b>🕒 Horaires :</b><br> ${horaires}</p>
+                                <p class="mb-1"><b>🍻 Happy Hour :</b> ${happyHour}</p>
+                                <p class="mb-1"><b>💶 Prix :</b> ${prix}</p>
+                            </div>
+                        `;
+                        L.marker([bar.lat, bar.lon], {icon: barIcon}).bindPopup(popupContent).addTo(barMarkers);
+                    });
+                }
             } else {
                 alert("Impossible de localiser les adresses.");
             }
