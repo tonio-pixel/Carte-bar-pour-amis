@@ -10,32 +10,83 @@
         #map { height: 100%; min-height: 400px; z-index: 10; }
         .leaflet-popup-content-wrapper { background-color: #1f2937; color: #f3f4f6; border-radius: 0.5rem; }
         .leaflet-popup-tip { background-color: #1f2937; }
+        /* Style personnalisé pour la barre de défilement des inputs */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 10px; }
     </style>
 </head>
 <body class="bg-gray-900 text-gray-100 flex flex-col md:flex-row h-screen font-sans">
 
-    <div class="w-full md:w-1/3 p-6 bg-gray-800 shadow-xl overflow-y-auto flex flex-col gap-4 z-20">
-        <h1 class="text-2xl font-bold text-pink-500 mb-2">📍 Meet at the Bar</h1>
-        <p class="text-sm text-gray-400 mb-4">Saisissez des adresses pour trouver le point central et les vrais bars autour.</p>
+    <!-- Panneau Latéral (Contrôles) -->
+    <div class="w-full md:w-1/3 p-4 bg-gray-800 shadow-xl overflow-y-auto flex flex-col gap-4 z-20">
+        <h1 class="text-2xl font-bold text-pink-500 mb-1">📍 Meet at the Bar</h1>
+        <p class="text-xs text-gray-400 mb-2">Le point central s'adaptera au moyen de transport de chacun (ex: le bar sera plus proche de celui qui vient à pied).</p>
         
         <div id="address-inputs" class="flex flex-col gap-3">
-            <input type="text" placeholder="Adresse 1 (ex: Gare de Lyon, Paris)" class="p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:border-pink-500" value="Gare de Lyon, Paris">
-            <input type="text" placeholder="Adresse 2 (ex: Bastille, Paris)" class="p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:border-pink-500" value="Châtelet, Paris">
-            <input type="text" placeholder="Adresse 3" class="p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:border-pink-500">
-            <input type="text" placeholder="Adresse 4" class="p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:border-pink-500">
-            <input type="text" placeholder="Adresse 5" class="p-3 bg-gray-700 rounded-lg border border-gray-600 focus:outline-none focus:border-pink-500">
+            <!-- Adresse 1 -->
+            <div class="flex gap-2 participant-row">
+                <input type="text" placeholder="Adresse 1" class="address-input w-2/3 p-2 bg-gray-700 text-sm rounded-lg border border-gray-600 focus:outline-none focus:border-pink-500" value="Gare de Lyon, Paris">
+                <select class="mode-select w-1/3 p-2 bg-gray-700 text-sm rounded-lg border border-gray-600 focus:outline-none focus:border-pink-500">
+                    <option value="transit">🚇 Métro</option>
+                    <option value="walk">🚶 À pied</option>
+                    <option value="bike">🚲 Vélo</option>
+                    <option value="car">🚗 Voiture</option>
+                </select>
+            </div>
+            <!-- Adresse 2 -->
+            <div class="flex gap-2 participant-row">
+                <input type="text" placeholder="Adresse 2" class="address-input w-2/3 p-2 bg-gray-700 text-sm rounded-lg border border-gray-600 focus:outline-none focus:border-pink-500" value="Châtelet, Paris">
+                <select class="mode-select w-1/3 p-2 bg-gray-700 text-sm rounded-lg border border-gray-600 focus:outline-none focus:border-pink-500">
+                    <option value="transit">🚇 Métro</option>
+                    <option value="walk">🚶 À pied</option>
+                    <option value="bike">🚲 Vélo</option>
+                    <option value="car">🚗 Voiture</option>
+                </select>
+            </div>
+            <!-- Adresse 3 -->
+            <div class="flex gap-2 participant-row">
+                <input type="text" placeholder="Adresse 3" class="address-input w-2/3 p-2 bg-gray-700 text-sm rounded-lg border border-gray-600 focus:outline-none focus:border-pink-500">
+                <select class="mode-select w-1/3 p-2 bg-gray-700 text-sm rounded-lg border border-gray-600 focus:outline-none focus:border-pink-500">
+                    <option value="transit">🚇 Métro</option>
+                    <option value="walk">🚶 À pied</option>
+                    <option value="bike">🚲 Vélo</option>
+                    <option value="car">🚗 Voiture</option>
+                </select>
+            </div>
+            <!-- Adresse 4 -->
+            <div class="flex gap-2 participant-row">
+                <input type="text" placeholder="Adresse 4" class="address-input w-2/3 p-2 bg-gray-700 text-sm rounded-lg border border-gray-600 focus:outline-none focus:border-pink-500">
+                <select class="mode-select w-1/3 p-2 bg-gray-700 text-sm rounded-lg border border-gray-600 focus:outline-none focus:border-pink-500">
+                    <option value="transit">🚇 Métro</option>
+                    <option value="walk">🚶 À pied</option>
+                    <option value="bike">🚲 Vélo</option>
+                    <option value="car">🚗 Voiture</option>
+                </select>
+            </div>
+            <!-- Adresse 5 -->
+            <div class="flex gap-2 participant-row">
+                <input type="text" placeholder="Adresse 5" class="address-input w-2/3 p-2 bg-gray-700 text-sm rounded-lg border border-gray-600 focus:outline-none focus:border-pink-500">
+                <select class="mode-select w-1/3 p-2 bg-gray-700 text-sm rounded-lg border border-gray-600 focus:outline-none focus:border-pink-500">
+                    <option value="transit">🚇 Métro</option>
+                    <option value="walk">🚶 À pied</option>
+                    <option value="bike">🚲 Vélo</option>
+                    <option value="car">🚗 Voiture</option>
+                </select>
+            </div>
         </div>
 
         <button id="calculate-btn" class="mt-4 bg-pink-600 hover:bg-pink-700 text-white font-bold py-3 px-4 rounded-lg transition-colors">
-            Trouver le point de rendez-vous
+            Calculer l'itinéraire idéal
         </button>
-        <div id="status" class="text-sm text-pink-400 mt-2 hidden">Calcul et recherche des bars en temps réel...</div>
+        <div id="status" class="text-sm text-pink-400 mt-2 hidden">Analyse des trajets...</div>
     </div>
 
+    <!-- Carte -->
     <div class="w-full md:w-2/3 h-full relative">
         <div id="map"></div>
     </div>
 
+    <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         const map = L.map('map').setView([48.8566, 2.3522], 13);
@@ -68,22 +119,22 @@
             return null;
         }
 
-        // Nouvelle fonction : Récupération des vrais bars via Overpass API
+        // Rayon réduit à 500 mètres
         async function fetchRealBars(lat, lon) {
-            const query = `[out:json];node(around:1000,${lat},${lon})["amenity"~"bar|pub"];out;`;
+            const query = `[out:json];node(around:500,${lat},${lon})["amenity"~"bar|pub"];out;`;
             const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
             try {
                 const response = await fetch(url);
                 const data = await response.json();
                 return data.elements;
             } catch (error) {
-                console.error("Erreur de récupération des bars:", error);
+                console.error("Erreur Overpass:", error);
                 return [];
             }
         }
 
         document.getElementById('calculate-btn').addEventListener('click', async () => {
-            const inputs = document.querySelectorAll('#address-inputs input');
+            const rows = document.querySelectorAll('.participant-row');
             const status = document.getElementById('status');
             status.classList.remove('hidden');
             status.innerText = "Géocodage des adresses...";
@@ -93,13 +144,32 @@
             
             let coords = [];
             
-            for (let input of inputs) {
+            // Poids pour attirer le point central vers les plus lents
+            const transportWeights = {
+                'walk': 4.0,     // Attire fortement le centre
+                'transit': 2.0,  // Attire moyennement
+                'bike': 1.5,     // Attire légèrement
+                'car': 1.0       // Le point s'éloigne le plus
+            };
+            
+            for (let row of rows) {
+                const input = row.querySelector('.address-input');
+                const select = row.querySelector('.mode-select');
+                
                 if (input.value.trim() !== "") {
                     let coord = await geocode(input.value);
                     if (coord) {
-                        coords.push(coord);
+                        const transportName = select.options[select.selectedIndex].text;
+                        coords.push({
+                            lat: coord.lat,
+                            lon: coord.lon,
+                            weight: transportWeights[select.value],
+                            label: input.value,
+                            transport: transportName
+                        });
+                        
                         L.marker([coord.lat, coord.lon], {icon: userIcon})
-                            .bindPopup(`<b>Départ :</b> ${input.value}`)
+                            .bindPopup(`<b>Départ :</b> ${input.value}<br><b>Mode :</b> ${transportName}`)
                             .addTo(userMarkers);
                     }
                 }
@@ -107,25 +177,44 @@
             }
 
             if (coords.length > 0) {
-                let avgLat = coords.reduce((sum, c) => sum + c.lat, 0) / coords.length;
-                let avgLon = coords.reduce((sum, c) => sum + c.lon, 0) / coords.length;
-                map.setView([avgLat, avgLon], 15);
+                // Calcul du barycentre pondéré
+                let totalWeight = 0;
+                let weightedLat = 0;
+                let weightedLon = 0;
+
+                coords.forEach(c => {
+                    weightedLat += c.lat * c.weight;
+                    weightedLon += c.lon * c.weight;
+                    totalWeight += c.weight;
+                });
+
+                let centerLat = weightedLat / totalWeight;
+                let centerLon = weightedLon / totalWeight;
                 
-                status.innerText = "Recherche des établissements réels (1km)...";
-                const realBars = await fetchRealBars(avgLat, avgLon);
+                map.setView([centerLat, centerLon], 15);
+                
+                // Tracer le cercle de 500m sur la carte
+                L.circle([centerLat, centerLon], {
+                    color: '#ec4899',
+                    fillColor: '#ec4899',
+                    fillOpacity: 0.1,
+                    radius: 500
+                }).addTo(barMarkers);
+                
+                status.innerText = "Recherche des établissements à moins de 500m...";
+                const realBars = await fetchRealBars(centerLat, centerLon);
 
                 if (realBars.length === 0) {
-                    alert("Aucun bar répertorié dans un rayon de 1km autour du point central.");
+                    alert("Aucun bar répertorié dans un rayon de 500m autour du point de convergence.");
                 } else {
                     realBars.forEach(bar => {
                         const tags = bar.tags;
-                        if (!tags || !tags.name) return; // Ignore les établissements sans nom
+                        if (!tags || !tags.name) return;
 
-                        // Extraction des données réelles
                         const nom = tags.name;
                         const horaires = tags.opening_hours ? tags.opening_hours.replace(/;/g, '<br>') : "<span class='text-gray-400 italic'>Non renseigné</span>";
-                        const happyHour = tags.happy_hours || "<span class='text-gray-400 italic'>Non renseigné dans l'Open Data</span>";
-                        const prix = tags.charge || tags.price || "<span class='text-gray-400 italic'>Voir sur place</span>";
+                        const happyHour = tags.happy_hours || "<span class='text-gray-400 italic'>Inconnu</span>";
+                        const prix = tags.charge || tags.price || "<span class='text-gray-400 italic'>Inconnu</span>";
                         const type = tags.amenity === 'pub' ? 'Pub' : 'Bar';
 
                         let popupContent = `
@@ -134,14 +223,12 @@
                                 <p class="mb-1 text-xs text-gray-300 uppercase">${type}</p>
                                 <p class="mb-2 mt-2"><b>🕒 Horaires :</b><br> ${horaires}</p>
                                 <p class="mb-1"><b>🍻 Happy Hour :</b> ${happyHour}</p>
-                                <p class="mb-1"><b>💶 Prix :</b> ${prix}</p>
+                                <p class="mb-1"><b>💶 Prix indicatif :</b> ${prix}</p>
                             </div>
                         `;
                         L.marker([bar.lat, bar.lon], {icon: barIcon}).bindPopup(popupContent).addTo(barMarkers);
                     });
                 }
-            } else {
-                alert("Impossible de localiser les adresses.");
             }
             status.classList.add('hidden');
         });
