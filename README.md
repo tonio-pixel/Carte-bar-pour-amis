@@ -1,18 +1,43 @@
-# 📍 Meet at the Bar - Carte Interactive
+# 🍻 Meet at the Bar
 
-Une application web interactive conçue pour calculer le point de rendez-vous idéal pour un groupe. En saisissant jusqu'à 5 adresses différentes, le système calcule un point de convergence géographique et interroge des bases de données en temps réel pour suggérer de véritables établissements à mi-chemin.
+> Trouvez le bar parfait au point d'équidistance de votre groupe d'amis.
 
-## 🚀 Voir l'application en direct
-[👉 Cliquez ici pour ouvrir la carte interactive](https://tonio-pixel.github.io/Carte-bar-pour-amis/)
+## 📖 Description
 
-## ⚙️ Fonctionnalités
-* **Géocodage multiple :** Transformation instantanée des adresses postales en coordonnées GPS via Nominatim.
-* **Calcul de convergence :** Détermination du centre exact pour minimiser le trajet de chaque participant.
-* **Data Réelle (Live) :** Connexion à l'Overpass API (OpenStreetMap) pour extraire les bars et pubs situés dans un rayon de 1 kilomètre autour du point central.
-* **Informations ciblées :** Affichage des vrais noms, des horaires d'ouverture officiels, et des données tarifaires/Happy Hour (lorsque les gérants les ont renseignées dans l'Open Data).
-* **Interface Dark Mode :** Design UI/UX optimisé pour l'industrie de la restauration et du monde de la nuit.
+**Meet at the Bar** est une application web single-page qui permet à un groupe de 2 à 5 personnes de saisir leurs adresses de départ et leur moyen de transport respectif. L'application calcule un **point de rendez-vous équitable** (barycentre pondéré) et affiche les **3 meilleurs bars** les plus proches de ce point, directement sur une carte interactive en mode sombre.
 
-## 🛠️ Technologies Utilisées
-* **Frontend :** HTML5, JavaScript, API Fetch, Tailwind CSS.
-* **Cartographie :** Bibliothèque Leaflet.js, fond de carte CartoDB Dark Matter.
-* **Open Data :** Nominatim API et Overpass API.
+## ✨ Fonctionnalités
+
+- ✅ Saisie jusqu'à **5 participants** avec adresse et moyen de transport
+- ✅ **Géocodage** des adresses via Nominatim (OpenStreetMap)
+- ✅ **Barycentre pondéré** : le centre s'adapte au moyen de transport de chacun
+- ✅ **Recherche de bars réels** via l'Overpass API (OpenStreetMap)
+- ✅ **Top 3 strict** : uniquement les 3 bars les plus proches du point de RDV
+- ✅ **Popups détaillés** : nom, type, horaires, happy hour, prix
+- ✅ **Dark mode natif** sans clé API (filtre CSS sur les tuiles OSM)
+- ✅ **100% gratuit** — aucune clé API requise
+- ✅ **Responsive** — fonctionne sur mobile et desktop
+
+## 🧮 Logique de calcul
+
+### Barycentre pondéré
+
+Chaque moyen de transport se voit attribuer un **poids mathématique** :
+
+| Transport | Icône | Poids | Effet |
+|-----------|-------|-------|-------|
+| À pied | 🚶 | 4.0 | Attire fortement le centre vers soi |
+| Métro/Bus | 🚇 | 2.0 | Attrait modéré |
+| Vélo | 🚲 | 1.5 | Attrait faible |
+| Voiture | 🚗 | 1.0 | S'éloigne le plus du centre |
+
+> **Principe** : quelqu'un à pied accepte de marcher plus loin, donc le centre se rapproche de lui. Quelqu'un en voiture peut parcourir plus de distance, donc le centre s'en éloigne.
+
+### Formule
+
+$$\text{Centre} = \frac{\sum_{i=1}^{n}(\text{position}_i \times \text{poids}_i)}{\sum_{i=1}^{n} \text{poids}_i}$$
+
+### Filtrage des bars
+
+```javascript
+bars.sort((a, b) => a.distance - b.distance).slice(0, 3)
