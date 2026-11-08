@@ -30,6 +30,7 @@
             color: #f3f4f6;
             border-radius: 12px;
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            width: 280px;
         }
 
         .leaflet-popup-tip {
@@ -37,40 +38,28 @@
         }
 
         .leaflet-popup-content {
-            margin: 12px 16px;
+            margin: 14px;
             font-family: 'Segoe UI', system-ui, sans-serif;
             font-size: 13px;
             line-height: 1.5;
         }
 
         .leaflet-popup-content .bar-name {
-            font-size: 15px;
+            font-size: 16px;
             font-weight: 700;
             color: #ec4899;
-            margin-bottom: 6px;
-        }
-
-        .leaflet-popup-content .bar-detail {
-            margin: 3px 0;
-            color: #d1d5db;
-        }
-
-        .leaflet-popup-content .bar-detail .label {
-            font-weight: 600;
-            color: #9ca3af;
-        }
-
-        .leaflet-popup-content .bar-detail .not-found {
-            font-style: italic;
-            color: #6b7280;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #374151;
+            padding-bottom: 6px;
         }
 
         .leaflet-popup-content .bar-distance {
-            margin-top: 8px;
-            padding-top: 6px;
+            margin-top: 10px;
+            padding-top: 8px;
             border-top: 1px solid #374151;
             font-weight: 600;
             color: #f472b6;
+            text-align: center;
         }
 
         /* Custom marker pulse animation */
@@ -114,20 +103,17 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
-
-        /* Transport icons */
-        .transport-badge {
-            font-size: 11px;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-weight: 600;
+        
+        /* Utility classes overrides for Leaflet popups */
+        .leaflet-popup-content a:hover {
+            color: #93c5fd !important;
         }
     </style>
 </head>
 <body class="bg-gray-900 text-gray-100 min-h-screen flex flex-col md:flex-row overflow-hidden">
 
     <!-- LEFT PANEL -->
-    <aside class="w-full md:w-[420px] lg:w-[460px] bg-gray-800 border-r border-gray-700 flex flex-col h-[50vh] md:h-screen overflow-hidden z-20 relative">
+    <aside class="w-full md:w-[420px] lg:w-[480px] bg-gray-800 border-r border-gray-700 flex flex-col h-[50vh] md:h-screen overflow-hidden z-20 relative">
 
         <!-- Header -->
         <header class="p-5 border-b border-gray-700 bg-gray-800/95 backdrop-blur-sm">
@@ -169,15 +155,21 @@
             <div id="status-area" class="mt-4 space-y-2"></div>
 
             <!-- Results summary -->
-            <div id="results-summary" class="mt-5 hidden">
-                <div class="bg-gray-700/50 rounded-xl p-4 border border-gray-600">
-                    <h3 class="text-sm font-bold text-pink-400 uppercase tracking-wide mb-3">📍 Point de RDV calculé</h3>
-                    <div id="center-info" class="text-sm text-gray-300 space-y-1"></div>
+            <div id="results-summary" class="mt-5 hidden pb-6">
+                <!-- Centre calculé -->
+                <div class="bg-gray-700/50 rounded-xl p-4 border border-gray-600 shadow-inner">
+                    <h3 class="text-sm font-bold text-pink-400 uppercase tracking-wide mb-3 flex items-center gap-2">
+                        <span>🎯</span> Point de RDV calculé
+                    </h3>
+                    <div id="center-info" class="text-sm text-gray-300 space-y-2"></div>
                 </div>
 
-                <div class="mt-4">
-                    <h3 class="text-sm font-bold text-pink-400 uppercase tracking-wide mb-3">🏆 Top 3 Bars</h3>
-                    <div id="bars-list" class="space-y-2"></div>
+                <!-- Top 3 Bars -->
+                <div class="mt-6">
+                    <h3 class="text-sm font-bold text-pink-400 uppercase tracking-wide mb-3 flex items-center gap-2">
+                        <span>🏆</span> Le Top 3
+                    </h3>
+                    <div id="bars-list" class="space-y-4"></div>
                 </div>
             </div>
         </div>
@@ -195,7 +187,7 @@
         <div id="map" class="w-full h-full"></div>
 
         <!-- Map overlay info -->
-        <div id="map-overlay" class="absolute top-4 right-4 z-[1000] bg-gray-800/90 backdrop-blur-sm rounded-xl px-4 py-2 text-xs text-gray-300 border border-gray-600 hidden">
+        <div id="map-overlay" class="absolute top-4 right-4 z-[1000] bg-gray-800/90 backdrop-blur-sm rounded-xl px-4 py-2 text-xs text-gray-300 border border-gray-600 hidden shadow-lg">
             <span class="text-pink-400 font-bold">🎯</span> Point d'équidistance trouvé
         </div>
     </main>
@@ -221,7 +213,7 @@
 
         const BAR_SEARCH_RADIUS = 5000;
         const MAX_BARS = 3;
-        const NOMINATIM_DELAY = 1000; // 1 seconde requise par les CGU de Nominatim
+        const NOMINATIM_DELAY = 1000;
         const MAX_PARTICIPANTS = 5;
 
         // ============================================================
@@ -232,10 +224,9 @@
         let map = null;
         let markers = [];
         let searchCircle = null;
-        let participantCount = 0;
 
         // ============================================================
-        // UTILS
+        // UTILS & UI HELPERS
         // ============================================================
 
         const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -268,6 +259,68 @@
             }
         }
 
+        function formatBarType(type) {
+            const typeMap = {
+                'bar': '🍸 Bar',
+                'pub': '🍺 Pub',
+                'biergarten': '🌳 Biergarten',
+                'cafe': '☕ Café'
+            };
+            return typeMap[type] || `📍 ${type}`;
+        }
+
+        // Fonction centralisée pour générer le bloc d'informations structurées d'un bar (utilisée pour Liste + Popup)
+        function generateBarDetailsHTML(bar) {
+            const getVal = (val) => val 
+                ? `<span class="font-bold text-gray-100">${val}</span>` 
+                : `<span class="italic text-gray-500 text-xs">Non renseigné</span>`;
+
+            const hhBadge = bar.happy_hours
+                ? `<span class="bg-green-500/20 text-green-400 px-2 py-0.5 rounded text-[10px] font-bold uppercase border border-green-500/30">Oui</span>`
+                : `<span class="bg-gray-600/30 text-gray-400 px-2 py-0.5 rounded text-[10px] font-bold uppercase border border-gray-600/50">Non renseigné</span>`;
+
+            return `
+                <div class="space-y-1.5 text-xs text-gray-300 mt-2">
+                    <div class="flex items-start gap-2">
+                        <span class="w-4 text-center">📂</span>
+                        <span class="w-24 text-gray-400">Type :</span>
+                        <span class="flex-1">${getVal(formatBarType(bar.type))}</span>
+                    </div>
+                    <div class="flex items-start gap-2">
+                        <span class="w-4 text-center">💰</span>
+                        <span class="w-24 text-gray-400">Prix :</span>
+                        <span class="flex-1">${getVal(bar.price)}</span>
+                    </div>
+                    <div class="flex items-start gap-2">
+                        <span class="w-4 text-center">🍹</span>
+                        <span class="w-24 text-gray-400">Happy Hour :</span>
+                        <span class="flex-1">${hhBadge}</span>
+                    </div>
+                    <div class="flex items-start gap-2">
+                        <span class="w-4 text-center">⏱️</span>
+                        <span class="w-24 text-gray-400">Horaires HH :</span>
+                        <span class="flex-1">${getVal(bar.happy_hours)}</span>
+                    </div>
+                    <div class="flex items-start gap-2">
+                        <span class="w-4 text-center">🕐</span>
+                        <span class="w-24 text-gray-400">Ouverture :</span>
+                        <span class="flex-1">${getVal(bar.opening_hours)}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Fonction centralisée pour générer le bouton Google Maps
+        function generateGoogleMapsBtn(lat, lng, label = "📍 Ouvrir dans Google Maps") {
+            const url = `https://google.com/maps/search/?api=1&query=${lat},${lng}`;
+            return `
+                <a href="${url}" target="_blank" 
+                   class="mt-3 flex items-center justify-center gap-2 w-full py-2 px-3 bg-blue-600/20 hover:bg-blue-600/40 border border-blue-500/50 text-blue-400 hover:text-blue-300 font-bold rounded-lg transition-colors text-xs text-decoration-none shadow-sm">
+                    ${label}
+                </a>
+            `;
+        }
+
         // ============================================================
         // INITIALIZATION
         // ============================================================
@@ -290,12 +343,9 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             initMap();
-            
-            // Génère 2 champs vides par défaut
             createParticipantRow(0);
             createParticipantRow(1);
 
-            // Bouton d'ajout de participant
             document.getElementById('btn-add-participant').addEventListener('click', () => {
                 const count = getParticipantRowCount();
                 if (count < MAX_PARTICIPANTS) {
@@ -305,10 +355,8 @@
                 }
             });
 
-            // Bouton Calculer
             document.getElementById('btn-find').addEventListener('click', findMeetingPoint);
-            
-            // Bouton Réinitialiser
+
             document.getElementById('btn-reset').addEventListener('click', () => {
                 document.getElementById('participants-container').innerHTML = '';
                 createParticipantRow(0);
@@ -378,9 +426,7 @@
                 if (input) input.id = `address-${i}`;
                 if (select) select.id = `transport-${i}`;
                 const removeBtn = row.querySelector('button[onclick]');
-                if (removeBtn && i >= 2) {
-                    removeBtn.setAttribute('onclick', `removeParticipant(${i})`);
-                }
+                if (removeBtn && i >= 2) removeBtn.setAttribute('onclick', `removeParticipant(${i})`);
             });
         }
 
@@ -394,21 +440,12 @@
 
         async function geocodeAddress(address) {
             const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1&addressdetails=1`;
-
             try {
-                const response = await fetch(url, {
-                    headers: { 'User-Agent': 'MeetAtTheBar/1.0 (Educational Project)' }
-                });
-
+                const response = await fetch(url, { headers: { 'User-Agent': 'MeetAtTheBar/1.0 (Educational Project)' } });
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const data = await response.json();
-
                 if (data && data.length > 0) {
-                    return {
-                        lat: parseFloat(data[0].lat),
-                        lng: parseFloat(data[0].lon),
-                        displayName: data[0].display_name
-                    };
+                    return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon), displayName: data[0].display_name };
                 }
                 return null;
             } catch (error) {
@@ -420,56 +457,27 @@
         async function geocodeAllParticipants() {
             const count = getParticipantRowCount();
             const results = [];
-
             for (let i = 0; i < count; i++) {
                 const addressInput = document.getElementById(`address-${i}`);
                 const transportSelect = document.getElementById(`transport-${i}`);
-
                 if (!addressInput || !transportSelect) continue;
 
                 const address = addressInput.value.trim();
                 const transport = transportSelect.value;
-
-                if (!address) {
-                    results.push({
-                        address: '',
-                        transport: transport,
-                        lat: null,
-                        lng: null,
-                        name: `Personne ${i + 1}`
-                    });
-                    continue;
-                }
+                if (!address) continue;
 
                 updateStatus(`🔍 Géocodage de "${address}"...`, 'info');
-
                 const geoResult = await geocodeAddress(address);
 
                 if (geoResult) {
-                    results.push({
-                        address: address,
-                        transport: transport,
-                        lat: geoResult.lat,
-                        lng: geoResult.lng,
-                        name: `Personne ${i + 1}`
-                    });
-                    updateStatus(`✅ ${address} → (${geoResult.lat.toFixed(5)}, ${geoResult.lng.toFixed(5)})`, 'success');
+                    results.push({ address, transport, lat: geoResult.lat, lng: geoResult.lng, name: `Personne ${i + 1}` });
+                    updateStatus(`✅ ${address} géocodée`, 'success');
                 } else {
-                    results.push({
-                        address: address,
-                        transport: transport,
-                        lat: null,
-                        lng: null,
-                        name: `Personne ${i + 1}`
-                    });
                     updateStatus(`❌ Adresse introuvable: "${address}"`, 'error');
                 }
 
-                if (i < count - 1) {
-                    await sleep(NOMINATIM_DELAY);
-                }
+                if (i < count - 1) await sleep(NOMINATIM_DELAY); // Strict 1000ms delay compliance
             }
-
             return results;
         }
 
@@ -478,14 +486,7 @@
         // ============================================================
 
         function calculateBarycenter(points) {
-            const validPoints = points
-                .filter(p => p.lat !== null && p.lng !== null)
-                .map(p => ({
-                    lat: p.lat,
-                    lng: p.lng,
-                    weight: TRANSPORT_WEIGHTS[p.transport] || 1.0
-                }));
-
+            const validPoints = points.map(p => ({ lat: p.lat, lng: p.lng, weight: TRANSPORT_WEIGHTS[p.transport] || 1.0 }));
             if (validPoints.length === 0) return null;
 
             const totalWeight = validPoints.reduce((sum, p) => sum + p.weight, 0);
@@ -494,10 +495,7 @@
             const weightedLat = validPoints.reduce((sum, p) => sum + (p.lat * p.weight), 0);
             const weightedLng = validPoints.reduce((sum, p) => sum + (p.lng * p.weight), 0);
 
-            return {
-                lat: weightedLat / totalWeight,
-                lng: weightedLng / totalWeight
-            };
+            return { lat: weightedLat / totalWeight, lng: weightedLng / totalWeight };
         }
 
         // ============================================================
@@ -523,13 +521,10 @@
 
             for (let i = 0; i < overpassEndpoints.length; i++) {
                 try {
-                    updateStatus(`🔍 Recherche de bars (endpoint ${i + 1}/${overpassEndpoints.length})...`, 'info');
-
+                    updateStatus(`🔍 Recherche de bars (endpoint ${i + 1})...`, 'info');
                     const response = await fetch(overpassEndpoints[i], {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded'
-                        },
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                         body: `data=${encodeURIComponent(overpassQuery)}`
                     });
 
@@ -537,18 +532,15 @@
                     const data = await response.json();
 
                     if (data.elements && data.elements.length > 0) {
-                        updateStatus(`✅ ${data.elements.length} établissements trouvés`, 'success');
                         return parseOverpassResults(data.elements);
                     }
                 } catch (error) {
                     console.warn(`Overpass endpoint ${i + 1} failed:`, error);
                     if (i < overpassEndpoints.length - 1) {
-                        updateStatus(`⚠️ Endpoint ${i + 1} indisponible, essai suivant...`, 'warning');
                         await sleep(1000);
                     }
                 }
             }
-
             return [];
         }
 
@@ -558,6 +550,7 @@
                 const lat = el.lat || (el.center ? el.center.lat : null);
                 const lng = el.lon || (el.center ? el.center.lon : null);
                 if (lat === null || lng === null) return;
+                
                 const tags = el.tags || {};
                 bars.push({
                     id: el.id,
@@ -565,9 +558,9 @@
                     lng: lng,
                     name: tags.name || 'Nom inconnu',
                     type: tags.amenity || 'bar',
-                    opening_hours: tags.opening_hours || '',
-                    happy_hours: tags.happy_hours || '',
-                    charge: tags.charge || tags.price || tags['fee'] || ''
+                    opening_hours: tags.opening_hours || null,
+                    happy_hours: tags.happy_hours || null,
+                    price: tags.charge || tags.price || tags.fee || null
                 });
             });
             return bars;
@@ -588,9 +581,7 @@
             return R * c;
         }
 
-        function toRad(deg) {
-            return deg * (Math.PI / 180);
-        }
+        function toRad(deg) { return deg * (Math.PI / 180); }
 
         // ============================================================
         // MAIN LOGIC
@@ -602,18 +593,6 @@
             document.getElementById('results-summary').classList.add('hidden');
             document.getElementById('map-overlay').classList.add('hidden');
 
-            const count = getParticipantRowCount();
-            let validCount = 0;
-            for (let i = 0; i < count; i++) {
-                const input = document.getElementById(`address-${i}`);
-                if (input && input.value.trim()) validCount++;
-            }
-
-            if (validCount < 2) {
-                updateStatus('⚠️ Veuillez saisir au moins 2 adresses valides.', 'error');
-                return;
-            }
-
             setLoading(true);
 
             try {
@@ -622,7 +601,7 @@
                 const validParticipants = participants.filter(p => p.lat !== null && p.lng !== null);
 
                 if (validParticipants.length < 2) {
-                    updateStatus('❌ Moins de 2 adresses ont pu être géocodées.', 'error');
+                    updateStatus('⚠️ Au moins 2 adresses valides sont requises.', 'error');
                     setLoading(false);
                     return;
                 }
@@ -641,11 +620,12 @@
                 map.setView([center.lat, center.lng], 14);
                 document.getElementById('map-overlay').classList.remove('hidden');
 
-                updateStatus('🍺 Recherche des bars à proximité...', 'info');
+                updateStatus('🍺 Recherche des bars à proximité (Rayon 5km)...', 'info');
                 const bars = await searchBars(center.lat, center.lng, BAR_SEARCH_RADIUS);
 
                 if (bars.length === 0) {
-                    updateStatus('⚠️ Aucun bar trouvé dans un rayon de 5km. Essayez d\'élargir la zone.', 'warning');
+                    updateStatus('⚠️ Aucun bar trouvé. Essayez d\'élargir la zone ou d\'utiliser des adresses différentes.', 'warning');
+                    displayResultsSummary(center, [], validParticipants); // Affiche quand même le centre généré
                     setLoading(false);
                     return;
                 }
@@ -656,6 +636,7 @@
                     distance: haversineDistance(center.lat, center.lng, bar.lat, bar.lng)
                 }));
 
+                // Strict Top 3 limitation
                 const topBars = barsWithDistance
                     .sort((a, b) => a.distance - b.distance)
                     .slice(0, MAX_BARS);
@@ -685,13 +666,16 @@
                 iconAnchor: [10, 10]
             });
 
+            const popupHtml = `
+                <div class="bar-name text-center mb-2">🎯 Point de RDV Calculé</div>
+                <div class="text-gray-300 text-xs mb-1"><strong>Lat:</strong> ${lat.toFixed(6)}</div>
+                <div class="text-gray-300 text-xs mb-3"><strong>Lng:</strong> ${lng.toFixed(6)}</div>
+                ${generateGoogleMapsBtn(lat, lng, "📍 Ouvrir ce point dans Google Maps")}
+            `;
+
             const marker = L.marker([lat, lng], { icon: centerIcon })
                 .addTo(map)
-                .bindPopup(`
-                    <div class="bar-name">🎯 Point de RDV</div>
-                    <div class="bar-detail"><span class="label">Coordonnées:</span> ${lat.toFixed(5)}, ${lng.toFixed(5)}</div>
-                    <div class="bar-detail"><span class="label">Rayon de recherche:</span> ${BAR_SEARCH_RADIUS}m</div>
-                `);
+                .bindPopup(popupHtml);
 
             markers.push(marker);
 
@@ -721,9 +705,9 @@
                     .addTo(map)
                     .bindPopup(`
                         <div class="bar-name">${p.name}</div>
-                        <div class="bar-detail"><span class="label">Adresse:</span> ${p.address}</div>
-                        <div class="bar-detail"><span class="label">Transport:</span> ${info.icon} ${info.label}</div>
-                        <div class="bar-detail"><span class="label">Poids:</span> ${weight.toFixed(1)}</div>
+                        <div class="text-xs text-gray-300 mb-1"><strong>Adresse:</strong> ${p.address}</div>
+                        <div class="text-xs text-gray-300 mb-1"><strong>Transport:</strong> ${info.icon} ${info.label}</div>
+                        <div class="text-xs text-gray-300"><strong>Pondération:</strong> ${weight.toFixed(1)}</div>
                     `);
 
                 markers.push(marker);
@@ -732,7 +716,7 @@
                 if (center) {
                     const line = L.polyline(
                         [[p.lat, p.lng], [center.lat, center.lng]],
-                        { color: '#6b7280', weight: 1, opacity: 0.4, dashArray: '4, 8' }
+                        { color: '#6b7280', weight: 1.5, opacity: 0.5, dashArray: '4, 8' }
                     ).addTo(map);
                     markers.push(line);
                 }
@@ -750,48 +734,25 @@
                     iconAnchor: [18, 18]
                 });
 
-                const typeLabel = formatBarType(bar.type);
-                const openingHtml = bar.opening_hours
-                    ? `<div class="bar-detail"><span class="label">🕐 Horaires:</span> ${bar.opening_hours}</div>`
-                    : `<div class="bar-detail"><span class="label">🕐 Horaires:</span> <span class="not-found">Non renseigné</span></div>`;
-
-                const happyHtml = bar.happy_hours
-                    ? `<div class="bar-detail"><span class="label">🍹 Happy Hour:</span> ${bar.happy_hours}</div>`
-                    : `<div class="bar-detail"><span class="label">🍹 Happy Hour:</span> <span class="not-found">Non renseigné</span></div>`;
-
-                const priceHtml = bar.charge
-                    ? `<div class="bar-detail"><span class="label">💰 Prix:</span> ${bar.charge}</div>`
-                    : `<div class="bar-detail"><span class="label">💰 Prix:</span> <span class="not-found">Non renseigné</span></div>`;
-
                 const distanceKm = (bar.distance / 1000).toFixed(2);
+
+                const popupHtml = `
+                    <div class="bar-name">${barIcons[index] || '🍺'} ${bar.name}</div>
+                    ${generateBarDetailsHTML(bar)}
+                    <div class="bar-distance">📏 Distance du RDV: ${distanceKm} km</div>
+                    ${generateGoogleMapsBtn(bar.lat, bar.lng, "📍 Voir sur Google Maps")}
+                `;
 
                 const marker = L.marker([bar.lat, bar.lng], { icon: icon })
                     .addTo(map)
-                    .bindPopup(`
-                        <div class="bar-name">${barIcons[index]} ${bar.name}</div>
-                        <div class="bar-detail"><span class="label">📂 Type:</span> ${typeLabel}</div>
-                        ${openingHtml}
-                        ${happyHtml}
-                        ${priceHtml}
-                        <div class="bar-distance">📏 Distance du RDV: ${distanceKm} km</div>
-                    `);
+                    .bindPopup(popupHtml);
 
                 markers.push(marker);
             });
         }
 
-        function formatBarType(type) {
-            const typeMap = {
-                'bar': '🍸 Bar',
-                'pub': '🍺 Pub',
-                'biergarten': '🌳 Biergarten',
-                'cafe': '☕ Café'
-            };
-            return typeMap[type] || `📍 ${type}`;
-        }
-
         // ============================================================
-        // UI HELPERS
+        // DISPLAY RESULTS
         // ============================================================
 
         function displayResultsSummary(center, bars, participants) {
@@ -801,27 +762,47 @@
 
             summaryEl.classList.remove('hidden');
 
+            // Affichage du centre et bouton GMap
             centerInfo.innerHTML = `
-                <div>📍 <strong>Lat:</strong> ${center.lat.toFixed(6)}</div>
-                <div>📍 <strong>Lng:</strong> ${center.lng.toFixed(6)}</div>
-                <div class="mt-2 text-xs text-gray-400">
-                    Pondération: ${participants.map(p => {
+                <div class="grid grid-cols-2 gap-2 text-xs mb-2">
+                    <div class="bg-gray-800 rounded p-2 border border-gray-600"><strong>Lat:</strong> <span class="text-pink-400">${center.lat.toFixed(5)}</span></div>
+                    <div class="bg-gray-800 rounded p-2 border border-gray-600"><strong>Lng:</strong> <span class="text-pink-400">${center.lng.toFixed(5)}</span></div>
+                </div>
+                <div class="text-[11px] text-gray-400 mt-2 bg-gray-800/50 p-2 rounded">
+                    <strong>Pondérations appliquées :</strong><br/>
+                    ${participants.map(p => {
                         const info = TRANSPORT_LABELS[p.transport];
-                        return `${info ? info.icon : ''} ${info ? info.label : p.transport} (${TRANSPORT_WEIGHTS[p.transport] || 1})`;
+                        return `${info ? info.icon : ''} ${p.name} (${TRANSPORT_WEIGHTS[p.transport] || 1})`;
                     }).join(' • ')}
                 </div>
+                ${generateGoogleMapsBtn(center.lat, center.lng, "📍 Ouvrir le point de RDV dans Google Maps")}
             `;
 
+            // Affichage de la liste des bars (Top 3)
             const barIcons = ['🥇', '🥈', '🥉'];
-            barsList.innerHTML = bars.map((bar, i) => `
-                <div class="bg-gray-700/50 rounded-lg p-3 border border-gray-600/50 flex items-center gap-3">
-                    <span class="text-xl">${barIcons[i] || '🍺'}</span>
-                    <div class="flex-1 min-w-0">
-                        <div class="text-sm font-semibold text-gray-200 truncate">${bar.name}</div>
-                        <div class="text-xs text-gray-400">${formatBarType(bar.type)} • ${(bar.distance / 1000).toFixed(2)} km</div>
+            
+            if (bars.length > 0) {
+                barsList.innerHTML = bars.map((bar, i) => `
+                    <div class="bg-gray-700/40 rounded-xl p-4 border border-gray-600/60 hover:border-pink-500/50 transition-colors shadow-sm">
+                        <div class="flex items-center justify-between border-b border-gray-600/50 pb-2 mb-2">
+                            <h4 class="text-base font-bold text-gray-100 truncate pr-2 flex items-center gap-2">
+                                <span class="text-xl">${barIcons[i] || '🍺'}</span> ${bar.name}
+                            </h4>
+                            <span class="text-xs font-bold text-pink-400 bg-pink-500/10 px-2 py-1 rounded-lg whitespace-nowrap">
+                                ${(bar.distance / 1000).toFixed(2)} km
+                            </span>
+                        </div>
+                        
+                        ${generateBarDetailsHTML(bar)}
+                        
+                        <div class="mt-4">
+                            ${generateGoogleMapsBtn(bar.lat, bar.lng, "📍 Voir ce bar dans Google Maps")}
+                        </div>
                     </div>
-                </div>
-            `).join('');
+                `).join('');
+            } else {
+                barsList.innerHTML = `<div class="text-sm text-gray-400 italic text-center p-4">Aucun établissement correspondant n'a été trouvé à proximité.</div>`;
+            }
         }
 
         function updateStatus(message, type) {
@@ -834,14 +815,14 @@
             };
 
             const div = document.createElement('div');
-            div.className = `text-xs px-3 py-2 rounded-lg border ${colors[type]} animate-pulse transition-opacity duration-500`;
+            div.className = `text-xs px-3 py-2 rounded-lg border ${colors[type]} transition-opacity duration-500 font-medium`;
             div.textContent = message;
             area.appendChild(div);
 
             setTimeout(() => {
                 div.style.opacity = '0';
                 setTimeout(() => div.remove(), 500); 
-            }, 6000);
+            }, 5000);
         }
     </script>
 </body>
