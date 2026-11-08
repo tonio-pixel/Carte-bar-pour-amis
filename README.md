@@ -2,13 +2,18 @@
 
 > Trouvez le bar parfait au point d'équidistance de votre groupe d'amis.
 
+## 📸 Aperçu de l'application
+
+![Aperçu de la carte Meet at the Bar](screenshot.png)
+*(Remplace `screenshot.png` par une capture d'écran de ton application affichant la carte en mode sombre et les points de repère)*
+
 ## 📖 Description
 
 **Meet at the Bar** est une application web single-page qui permet à un groupe de 2 à 5 personnes de saisir leurs adresses de départ et leur moyen de transport respectif. L'application calcule un **point de rendez-vous équitable** (barycentre pondéré) et affiche les **3 meilleurs bars** les plus proches de ce point, directement sur une carte interactive en mode sombre.
 
 ## ✨ Fonctionnalités
 
-- ✅ Saisie jusqu'à **5 participants** avec adresse et moyen de transport
+- ✅ **Saisie jusqu'à 5 participants** avec adresse et moyen de transport
 - ✅ **Géocodage** des adresses via Nominatim (OpenStreetMap)
 - ✅ **Barycentre pondéré** : le centre s'adapte au moyen de transport de chacun
 - ✅ **Recherche de bars réels** via l'Overpass API (OpenStreetMap)
@@ -40,4 +45,4 @@ $$\text{Centre} = \frac{\sum_{i=1}^{n}(\text{position}_i \times \text{poids}_i)}
 ### Filtrage des bars
 
 ```javascript
-bars.sort((a, b) => a.distance - b.distance).slice(0, 3)
+bars.sort((a, b) => a.distance - b.distance).slice(0, 3);
