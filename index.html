@@ -3,101 +3,934 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Point de Rendez-vous Bars</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <title>Meet at the Bar 🍻</title>
+
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+          crossorigin="" />
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""></script>
+
     <style>
-        #map { height: 100%; min-height: 400px; z-index: 10; }
-        .leaflet-popup-content-wrapper { background-color: #1f2937; color: #f3f4f6; border-radius: 0.5rem; }
-        .leaflet-popup-tip { background-color: #1f2937; }
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 10px; }
-        
+        /* Dark mode via CSS filter on OSM tiles - No API key needed */
         .leaflet-tile-pane {
             filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
         }
+
+        /* Popup dark styling */
+        .leaflet-popup-content-wrapper {
+            background: #1f2937;
+            color: #f3f4f6;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+        }
+
+        .leaflet-popup-tip {
+            background: #1f2937;
+        }
+
+        .leaflet-popup-content {
+            margin: 12px 16px;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .leaflet-popup-content .bar-name {
+            font-size: 15px;
+            font-weight: 700;
+            color: #ec4899;
+            margin-bottom: 6px;
+        }
+
+        .leaflet-popup-content .bar-detail {
+            margin: 3px 0;
+            color: #d1d5db;
+        }
+
+        .leaflet-popup-content .bar-detail .label {
+            font-weight: 600;
+            color: #9ca3af;
+        }
+
+        .leaflet-popup-content .bar-detail .not-found {
+            font-style: italic;
+            color: #6b7280;
+        }
+
+        .leaflet-popup-content .bar-distance {
+            margin-top: 8px;
+            padding-top: 6px;
+            border-top: 1px solid #374151;
+            font-weight: 600;
+            color: #f472b6;
+        }
+
+        /* Custom marker pulse animation */
+        .pulse-marker {
+            border-radius: 50%;
+            background: rgba(236, 72, 153, 0.4);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.8); opacity: 0.4; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* Scrollbar styling */
+        .custom-scroll::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .custom-scroll::-webkit-scrollbar-track {
+            background: #1f2937;
+        }
+
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: #ec4899;
+            border-radius: 3px;
+        }
+
+        /* Loading spinner */
+        .spinner {
+            border: 3px solid rgba(236, 72, 153, 0.2);
+            border-top: 3px solid #ec4899;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 0.8s linear infinite;
+            display: inline-block;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Transport icons */
+        .transport-badge {
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
     </style>
 </head>
-<body class="bg-gray-900 text-gray-100 flex flex-col md:flex-row h-screen font-sans">
+<body class="bg-gray-900 text-gray-100 min-h-screen flex flex-col md:flex-row overflow-hidden">
 
-    <div class="w-full md:w-1/3 p-4 bg-gray-800 shadow-xl overflow-y-auto flex flex-col gap-4 z-20">
-        <h1 class="text-2xl font-bold text-pink-500 mb-1">📍 Meet at the Bar</h1>
-        <p class="text-xs text-gray-400 mb-2">Le point central s'adaptera au moyen de transport, et affichera les 3 meilleurs bars au croisement.</p>
-        
-        <div id="address-inputs" class="flex flex-col gap-3">
-            <div class="flex gap-2 participant-row">
-                <input type="text" placeholder="Adresse 1" class="address-input w-2/3 p-2 bg-gray-700 text-sm rounded-lg border border-gray-600 focus:outline-none focus:border-pink-500" value="Gare de Lyon, Paris">
-                <select class="mode-select w-1/3 p-2 bg-gray-700 text-sm rounded-lg border border-gray-600 focus:outline-none focus:border-pink-500">
-                    <option value="transit">🚇 Métro</option>
-                    <option value="walk">🚶 À pied</option>
-                    <option value="bike">🚲 Vélo</option>
-                    <option value="car">🚗 Voiture</option>
-                </select>
+    <!-- LEFT PANEL -->
+    <aside class="w-full md:w-[420px] lg:w-[460px] bg-gray-800 border-r border-gray-700 flex flex-col h-[50vh] md:h-screen overflow-hidden z-20 relative">
+
+        <!-- Header -->
+        <header class="p-5 border-b border-gray-700 bg-gray-800/95 backdrop-blur-sm">
+            <h1 class="text-2xl font-bold text-white flex items-center gap-2">
+                <span class="text-3xl">🍻</span> Meet at the Bar
+            </h1>
+            <p class="text-gray-400 text-sm mt-1">
+                Trouvez le bar parfait au point d'équidistance de votre groupe.
+            </p>
+        </header>
+
+        <!-- Form Area -->
+        <div class="flex-1 overflow-y-auto p-5 custom-scroll">
+            <div id="participants-container" class="space-y-4">
+                <!-- Dynamic participant fields injected here -->
             </div>
-            <div class="flex gap-2 participant-row">
-                <input type="text" placeholder="Adresse 2" class="address-input w-2/3 p-2 bg-gray-700 text-sm rounded-lg border border-gray-600 focus:outline-none focus:border-pink-500" value="Châtelet, Paris">
-                <select class="mode-select w-1/3 p-2 bg-gray-700 text-sm rounded-lg border border-gray-600 focus:outline-none focus:border-pink-500">
-                    <option value="transit">🚇 Métro</option>
-                    <option value="walk">🚶 À pied</option>
-                    <option value="bike">🚲 Vélo</option>
-                    <option value="car">🚗 Voiture</option>
-                </select>
+
+            <!-- Add participant button -->
+            <button id="btn-add-participant"
+                    class="mt-4 w-full py-2 px-4 border-2 border-dashed border-gray-600 rounded-xl text-gray-400 hover:border-pink-500 hover:text-pink-400 transition-all duration-200 text-sm font-medium flex items-center justify-center gap-2">
+                <span class="text-lg">+</span> Ajouter un participant
+            </button>
+
+            <!-- Action buttons -->
+            <div class="mt-6 space-y-3">
+                <button id="btn-find"
+                        class="w-full py-3 px-4 bg-pink-600 hover:bg-pink-500 text-white font-bold rounded-xl transition-all duration-200 shadow-lg shadow-pink-600/20 hover:shadow-pink-500/30 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <span id="btn-find-text">🎯 Calculer le point de RDV</span>
+                    <div id="btn-find-spinner" class="spinner hidden"></div>
+                </button>
+
+                <button id="btn-reset"
+                        class="w-full py-2 px-4 bg-gray-700 hover:bg-gray-600 text-gray-300 font-medium rounded-xl transition-all duration-200 text-sm">
+                    ↺ Réinitialiser
+                </button>
             </div>
-            <div class="flex gap-2 participant-row">
-                <input type="text" placeholder="Adresse 3" class="address-input w-2/3 p-2 bg-gray-700 text-sm rounded-lg border border-gray-600 focus:outline-none focus:border-pink-500">
-                <select class="mode-select w-1/3 p-2 bg-gray-700 text-sm rounded-lg border border-gray-600 focus:outline-none focus:border-pink-500">
-                    <option value="transit">🚇 Métro</option>
-                    <option value="walk">🚶 À pied</option>
-                    <option value="bike">🚲 Vélo</option>
-                    <option value="car">🚗 Voiture</option>
-                </select>
-            </div>
-            <div class="flex gap-2 participant-row">
-                <input type="text" placeholder="Adresse 4" class="address-input w-2/3 p-2 bg-gray-700 text-sm rounded-lg border border-gray-600 focus:outline-none focus:border-pink-500">
-                <select class="mode-select w-1/3 p-2 bg-gray-700 text-sm rounded-lg border border-gray-600 focus:outline-none focus:border-pink-500">
-                    <option value="transit">🚇 Métro</option>
-                    <option value="walk">🚶 À pied</option>
-                    <option value="bike">🚲 Vélo</option>
-                    <option value="car">🚗 Voiture</option>
-                </select>
-            </div>
-            <div class="flex gap-2 participant-row">
-                <input type="text" placeholder="Adresse 5" class="address-input w-2/3 p-2 bg-gray-700 text-sm rounded-lg border border-gray-600 focus:outline-none focus:border-pink-500">
-                <select class="mode-select w-1/3 p-2 bg-gray-700 text-sm rounded-lg border border-gray-600 focus:outline-none focus:border-pink-500">
-                    <option value="transit">🚇 Métro</option>
-                    <option value="walk">🚶 À pied</option>
-                    <option value="bike">🚲 Vélo</option>
-                    <option value="car">🚗 Voiture</option>
-                </select>
+
+            <!-- Status messages -->
+            <div id="status-area" class="mt-4 space-y-2"></div>
+
+            <!-- Results summary -->
+            <div id="results-summary" class="mt-5 hidden">
+                <div class="bg-gray-700/50 rounded-xl p-4 border border-gray-600">
+                    <h3 class="text-sm font-bold text-pink-400 uppercase tracking-wide mb-3">📍 Point de RDV calculé</h3>
+                    <div id="center-info" class="text-sm text-gray-300 space-y-1"></div>
+                </div>
+
+                <div class="mt-4">
+                    <h3 class="text-sm font-bold text-pink-400 uppercase tracking-wide mb-3">🏆 Top 3 Bars</h3>
+                    <div id="bars-list" class="space-y-2"></div>
+                </div>
             </div>
         </div>
 
-        <button id="calculate-btn" class="mt-4 bg-pink-600 hover:bg-pink-700 text-white font-bold py-3 px-4 rounded-lg transition-colors">
-            Calculer l'itinéraire idéal
-        </button>
-        <div id="status" class="text-sm text-pink-400 mt-2 hidden">Analyse des trajets...</div>
-    </div>
+        <!-- Footer -->
+        <footer class="p-3 border-t border-gray-700 text-center">
+            <p class="text-xs text-gray-500">
+                Données © <a href="https://www.openstreetmap.org/copyright" class="text-pink-500 hover:underline">OpenStreetMap</a> contributors
+            </p>
+        </footer>
+    </aside>
 
-    <div class="w-full md:w-2/3 h-full relative">
-        <div id="map"></div>
-    </div>
+    <!-- MAP AREA -->
+    <main class="flex-1 relative h-[50vh] md:h-screen">
+        <div id="map" class="w-full h-full"></div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+        <!-- Map overlay info -->
+        <div id="map-overlay" class="absolute top-4 right-4 z-[1000] bg-gray-800/90 backdrop-blur-sm rounded-xl px-4 py-2 text-xs text-gray-300 border border-gray-600 hidden">
+            <span class="text-pink-400 font-bold">🎯</span> Point d'équidistance trouvé
+        </div>
+    </main>
+
     <script>
-        const map = L.map('map').setView([48.8566, 2.3522], 13);
+        // ============================================================
+        // CONFIGURATION
+        // ============================================================
 
-        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-            maxZoom: 19
-        }).addTo(map);
+        /** @type {Object} Transport weights for barycenter calculation */
+        const TRANSPORT_WEIGHTS = {
+            'walking': 4.0,
+            'transit': 2.0,
+            'cycling': 1.5,
+            'driving': 1.0
+        };
 
-        let userMarkers = L.layerGroup().addTo(map);
-        let barMarkers = L.layerGroup().addTo(map);
+        /** @type {Object} Transport display labels and icons */
+        const TRANSPORT_LABELS = {
+            'walking': { label: 'À pied', icon: '🚶', weight: 4.0 },
+            'transit': { label: 'Métro/Bus', icon: '🚇', weight: 2.0 },
+            'cycling': { label: 'Vélo', icon: '🚲', weight: 1.5 },
+            'driving': { label: 'Voiture', icon: '🚗', weight: 1.0 }
+        };
 
-        const userIcon = L.icon({
-            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png',
-            iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34]
-        });
-        const barIcon = L.icon({
-            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-gold.png',
-            iconSize: [25, 41],
+        /** @type {number} Search radius for bars in meters */
+        const BAR_SEARCH_RADIUS = 5000;
+
+        /** @type {number} Maximum number of bars to display */
+        const MAX_BARS = 3;
+
+        /** @type {number} Delay between Nominatim requests in ms (CGU compliance) */
+        const NOMINATIM_DELAY = 500;
+
+        /** @type {number} Maximum participants allowed */
+        const MAX_PARTICIPANTS = 5;
+
+        // ============================================================
+        // STATE MANAGEMENT
+        // ============================================================
+
+        /** @type {Array<{address: string, transport: string, lat: number|null, lng: number|null, name: string}>} */
+        let participants = [];
+
+        /** @type {L.Map|null} */
+        let map = null;
+
+        /** @type {Array<L.Marker>} */
+        let markers = [];
+
+        /** @type {L.Circle|null} */
+        let searchCircle = null;
+
+        /** @type {number} Current participant count */
+        let participantCount = 0;
+
+        // ============================================================
+        // INITIALIZATION
+        // ============================================================
+
+        /**
+         * Initialize the Leaflet map with OSM tiles (no API key required)
+         * @returns {void}
+         */
+        function initMap() {
+            map = L.map('map', {
+                zoomControl: true,
+                attributionControl: true
+            }).setView([48.8566, 2.3522], 12); // Default: Paris
+
+            // Official OSM tile server - NO API KEY NEEDED
+            L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            }).addTo(map);
+
+            // Fallback tile server if OSM is down
+            map.on('tileerror', function () {
+                console.warn('OSM tile error, attempting fallback...');
+            });
+        }
+
+        /**
+         * Create a participant input row
+         * @param {number} index - The participant index (0-based)
+         * @returns {void}
+         */
+        function createParticipantRow(index) {
+            const container = document.getElementById('participants-container');
+            const row = document.createElement('div');
+            row.className = 'bg-gray-700/40 rounded-xl p-4 border border-gray-600/50 hover:border-gray-500/50 transition-colors';
+            row.id = `participant-row-${index}`;
+
+            row.innerHTML = `
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-sm font-bold text-gray-300 flex items-center gap-2">
+                        <span class="w-6 h-6 rounded-full bg-pink-600/20 text-pink-400 flex items-center justify-center text-xs font-bold">${index + 1}</span>
+                        Personne ${index + 1}
+                    </span>
+                    $${index >= 2 ? `<button onclick="removeParticipant($${index})" class="text-gray-500 hover:text-red-400 text-lg transition-colors" title="Supprimer">✕</button>` : ''}
+                </div>
+                <div class="space-y-2">
+                    <input type="text"
+                           id="address-${index}"
+                           placeholder="Adresse de départ (ex: 12 Rue de Rivoli, Paris)"
+                           class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500/30 transition-all"
+                           autocomplete="off">
+                    <select id="transport-${index}"
+                            class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-sm text-gray-200 focus:outline-none focus:border-pink-500 transition-all">
+                        <option value="walking">🚶 À pied (poids: 4.0)</option>
+                        <option value="transit">🚇 Métro/Bus (poids: 2.0)</option>
+                        <option value="cycling">🚲 Vélo (poids: 1.5)</option>
+                        <option value="driving">🚗 Voiture (poids: 1.0)</option>
+                    </select>
+                </div>
+            `;
+
+            container.appendChild(row);
+        }
+
+        /**
+         * Remove a participant row from the DOM
+         * @param {number} index - The participant index to remove
+         * @returns {void}
+         */
+        function removeParticipant(index) {
+            const row = document.getElementById(`participant-row-${index}`);
+            if (row) {
+                row.remove();
+                // Re-index remaining rows
+                reindexParticipants();
+            }
+        }
+
+        /**
+         * Re-index participant rows after removal
+         * @returns {void}
+         */
+        function reindexParticipants() {
+            const container = document.getElementById('participants-container');
+            const rows = container.querySelectorAll('[id^="participant-row-"]');
+            rows.forEach((row, i) => {
+                row.id = `participant-row-${i}`;
+                const numSpan = row.querySelector('.w-6.h-6');
+                if (numSpan) numSpan.textContent = String(i + 1);
+                const titleSpan = row.querySelector('span.font-bold.text-gray-300');
+                if (titleSpan) {
+                    titleSpan.innerHTML = `<span class="w-6 h-6 rounded-full bg-pink-600/20 text-pink-400 flex items-center justify-center text-xs font-bold">$${i + 1}</span> Personne $${i + 1}`;
+                }
+                // Update input/select IDs
+                const input = row.querySelector('input[type="text"]');
+                const select = row.querySelector('select');
+                if (input) input.id = `address-${i}`;
+                if (select) select.id = `transport-${i}`;
+                // Update remove button
+                const removeBtn = row.querySelector('button[onclick]');
+                if (removeBtn && i >= 2) {
+                    removeBtn.setAttribute('onclick', `removeParticipant(${i})`);
+                }
+            });
+        }
+
+        /**
+         * Get the current number of visible participant rows
+         * @returns {number}
+         */
+        function getParticipantRowCount() {
+            return document.querySelectorAll('[id^="participant-row-"]').length;
+        }
+
+        // ============================================================
+        // GEOCODING (NOMINATIM - NO API KEY)
+        // ============================================================
+
+        /**
+         * Geocode an address string to coordinates using Nominatim
+         * @param {string} address - The address to geocode
+         * @returns {Promise<{lat: number, lng: number, displayName: string}|null>}
+         */
+        async function geocodeAddress(address) {
+            const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1&addressdetails=1`;
+
+            try {
+                const response = await fetch(url, {
+                    headers: {
+                        'User-Agent': 'MeetAtTheBar/1.0 (Educational Project)'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (data && data.length > 0) {
+                    return {
+                        lat: parseFloat(data[0].lat),
+                        lng: parseFloat(data[0].lon),
+                        displayName: data[0].display_name
+                    };
+                }
+
+                return null;
+            } catch (error) {
+                console.error(`Geocoding error for "${address}":`, error);
+                return null;
+            }
+        }
+
+        /**
+         * Geocode all participant addresses sequentially with delay
+         * @returns {Promise<Array<{address: string, transport: string, lat: number|null, lng: number|null, name: string}>>}
+         */
+        async function geocodeAllParticipants() {
+            const count = getParticipantRowCount();
+            const results = [];
+
+            for (let i = 0; i < count; i++) {
+                /** @type {HTMLInputElement|null} */
+                const addressInput = document.getElementById(`address-${i}`);
+                /** @type {HTMLSelectElement|null} */
+                const transportSelect = document.getElementById(`transport-${i}`);
+
+                if (!addressInput || !transportSelect) continue;
+
+                const address = addressInput.value.trim();
+                const transport = transportSelect.value;
+
+                if (!address) {
+                    results.push({
+                        address: '',
+                        transport: transport,
+                        lat: null,
+                        lng: null,
+                        name: `Personne ${i + 1}`
+                    });
+                    continue;
+                }
+
+                updateStatus(`🔍 Géocodage de "${address}"...`, 'info');
+
+                const geoResult = await geocodeAddress(address);
+
+                if (geoResult) {
+                    results.push({
+                        address: address,
+                        transport: transport,
+                        lat: geoResult.lat,
+                        lng: geoResult.lng,
+                        name: `Personne ${i + 1}`
+                    });
+                    updateStatus(`✅ $${address} → ($${geoResult.lat.toFixed(5)}, ${geoResult.lng.toFixed(5)})`, 'success');
+                } else {
+                    results.push({
+                        address: address,
+                        transport: transport,
+                        lat: null,
+                        lng: null,
+                        name: `Personne ${i + 1}`
+                    });
+                    updateStatus(`❌ Adresse introuvable: "${address}"`, 'error');
+                }
+
+                // Respect Nominatim rate limit
+                if (i < count - 1) {
+                    await sleep(NOMINATIM_DELAY);
+                }
+            }
+
+            return results;
+        }
+
+        // ============================================================
+        // BARYCENTER CALCULATION
+        // ============================================================
+
+        /**
+         * Calculate the weighted barycenter of all valid participant positions
+         * @param {Array<{lat: number|null, lng: number|null, transport: string}>} points - Array of geocoded points
+         * @returns {{lat: number, lng: number}|null} The barycenter coordinates or null
+         */
+        function calculateBarycenter(points) {
+            /** @type {Array<{lat: number, lng: number, weight: number}>} */
+            const validPoints = points
+                .filter(p => p.lat !== null && p.lng !== null)
+                .map(p => ({
+                    lat: /** @type {number} */ (p.lat),
+                    lng: /** @type {number} */ (p.lng),
+                    weight: TRANSPORT_WEIGHTS[p.transport] || 1.0
+                }));
+
+            if (validPoints.length === 0) return null;
+
+            const totalWeight = validPoints.reduce((sum, p) => sum + p.weight, 0);
+
+            if (totalWeight === 0) return null;
+
+            const weightedLat = validPoints.reduce((sum, p) => sum + (p.lat * p.weight), 0);
+            const weightedLng = validPoints.reduce((sum, p) => sum + (p.lng * p.weight), 0);
+
+            return {
+                lat: weightedLat / totalWeight,
+                lng: weightedLng / totalWeight
+            };
+        }
+
+        // ============================================================
+        // BAR SEARCH (OVERPASS API - NO API KEY)
+        // ============================================================
+
+        /**
+         * Search for bars near a given point using Overpass API
+         * @param {number} lat - Center latitude
+         * @param {number} lng - Center longitude
+         * @param {number} radius - Search radius in meters
+         * @returns {Promise<Array<{id: number, lat: number, lng: number, name: string, type: string, opening_hours: string, happy_hours: string, charge: string}>>}
+         */
+        async function searchBars(lat, lng, radius) {
+            const overpassQuery = `
+                [out:json][timeout:25];
+                (
+                  node["amenity"~"bar|pub|biergarten|cafe"](around:$${radius},$${lat},${lng});
+                  way["amenity"~"bar|pub|biergarten|cafe"](around:$${radius},$${lat},${lng});
+                  relation["amenity"~"bar|pub|biergarten|cafe"](around:$${radius},$${lat},${lng});
+                );
+                out center body 50;
+            `;
+
+            const overpassEndpoints = [
+                'https://overpass-api.de/api/interpreter',
+                'https://overpass.kumi.systems/api/interpreter',
+                'https://overpass.private.coffee/api/interpreter'
+            ];
+
+            for (let i = 0; i < overpassEndpoints.length; i++) {
+                try {
+                    updateStatus(`🔍 Recherche de bars (endpoint $${i + 1}/$${overpassEndpoints.length})...`, 'info');
+
+                    const response = await fetch(overpassEndpoints[i], {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        },
+                        body: `data=${encodeURIComponent(overpassQuery)}`
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+
+                    const data = await response.json();
+
+                    if (data.elements && data.elements.length > 0) {
+                        updateStatus(`✅ ${data.elements.length} établissements trouvés`, 'success');
+                        return parseOverpassResults(data.elements);
+                    }
+                } catch (error) {
+                    console.warn(`Overpass endpoint ${i + 1} failed:`, error);
+                    if (i < overpassEndpoints.length - 1) {
+                        updateStatus(`⚠️ Endpoint ${i + 1} indisponible, essai suivant...`, 'warning');
+                        await sleep(1000);
+                    }
+                }
+            }
+
+            return [];
+        }
+
+        /**
+         * Parse raw Overpass API elements into structured bar objects
+         * @param {Array<Object>} elements - Raw Overpass API elements
+         * @returns {Array<{id: number, lat: number, lng: number, name: string, type: string, opening_hours: string, happy_hours: string, charge: string}>}
+         */
+        function parseOverpassResults(elements) {
+            /** @type {Array<{id: number, lat: number, lng: number, name: string, type: string, opening_hours: string, happy_hours: string, charge: string}>} */
+            const bars = [];
+
+            elements.forEach((/** @type {any} */ el) => {
+                const lat = el.lat || (el.center ? el.center.lat : null);
+                const lng = el.lon || (el.center ? el.center.lon : null);
+
+                if (lat === null || lng === null) return;
+
+                const tags = el.tags || {};
+
+                bars.push({
+                    id: el.id,
+                    lat: lat,
+                    lng: lng,
+                    name: tags.name || 'Nom inconnu',
+                    type: tags.amenity || 'bar',
+                    opening_hours: tags.opening_hours || '',
+                    happy_hours: tags.happy_hours || '',
+                    charge: tags.charge || tags.price || tags['fee'] || ''
+                });
+            });
+
+            return bars;
+        }
+
+        // ============================================================
+        // DISTANCE CALCULATION
+        // ============================================================
+
+        /**
+         * Calculate distance between two GPS points using Haversine formula
+         * @param {number} lat1 - Latitude of point 1
+         * @param {number} lng1 - Longitude of point 1
+         * @param {number} lat2 - Latitude of point 2
+         * @param {number} lng2 - Longitude of point 2
+         * @returns {number} Distance in meters
+         */
+        function haversineDistance(lat1, lng1, lat2, lng2) {
+            const R = 6371000; // Earth radius in meters
+            const dLat = toRad(lat2 - lat1);
+            const dLng = toRad(lng2 - lng1);
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+                      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c;
+        }
+
+        /**
+         * Convert degrees to radians
+         * @param {number} deg - Angle in degrees
+         * @returns {number} Angle in radians
+         */
+        function toRad(deg) {
+            return deg * (Math.PI / 180);
+        }
+
+        // ============================================================
+        // MAIN LOGIC
+        // ============================================================
+
+        /**
+         * Main function: orchestrates the full workflow
+         * @returns {Promise<void>}
+         */
+        async function findMeetingPoint() {
+            // Clear previous results
+            clearMap();
+            hideStatus();
+            document.getElementById('results-summary').classList.add('hidden');
+
+            // Validate inputs
+            const count = getParticipantRowCount();
+            let validCount = 0;
+            for (let i = 0; i < count; i++) {
+                /** @type {HTMLInputElement|null} */
+                const input = document.getElementById(`address-${i}`);
+                if (input && input.value.trim()) validCount++;
+            }
+
+            if (validCount < 2) {
+                updateStatus('⚠️ Veuillez saisir au moins 2 adresses valides.', 'error');
+                return;
+            }
+
+            // Disable button and show spinner
+            setLoading(true);
+
+            try {
+                // Step 1: Geocode all addresses
+                updateStatus('📍 Géocodage des adresses en cours...', 'info');
+                participants = await geocodeAllParticipants();
+
+                const validParticipants = participants.filter(p => p.lat !== null && p.lng !== null);
+
+                if (validParticipants.length < 2) {
+                    updateStatus('❌ Moins de 2 adresses ont pu être géocodées.', 'error');
+                    setLoading(false);
+                    return;
+                }
+
+                // Step 2: Calculate barycenter
+                updateStatus('⚖️ Calcul du point d\'équidistance pondéré...', 'info');
+                const center = calculateBarycenter(validParticipants);
+
+                if (!center) {
+                    updateStatus('❌ Impossible de calculer le centre.', 'error');
+                    setLoading(false);
+                    return;
+                }
+
+                // Step 3: Display center on map
+                addCenterMarker(center.lat, center.lng);
+                addParticipantMarkers(validParticipants);
+                map.setView([center.lat, center.lng], 14);
+                document.getElementById('map-overlay').classList.remove('hidden');
+
+                // Step 4: Search for bars
+                updateStatus('🍺 Recherche des bars à proximité...', 'info');
+                const bars = await searchBars(center.lat, center.lng, BAR_SEARCH_RADIUS);
+
+                if (bars.length === 0) {
+                    updateStatus('⚠️ Aucun bar trouvé dans un rayon de 5km. Essayez d\'élargir la zone.', 'warning');
+                    setLoading(false);
+                    return;
+                }
+
+                // Step 5: Calculate distances and sort
+                updateStatus('📊 Calcul des distances et classement...', 'info');
+
+                /** @type {Array<{id: number, lat: number, lng: number, name: string, type: string, opening_hours: string, happy_hours: string, charge: string, distance: number}>} */
+                const barsWithDistance = bars.map((/** @type {any} */ bar) => ({
+                    ...bar,
+                    distance: haversineDistance(center.lat, center.lng, bar.lat, bar.lng)
+                }));
+
+                // STRICT TOP 3 FILTER
+                const topBars = barsWithDistance
+                    .sort((/** @type {any} */ a, /** @type {any} */ b) => a.distance - b.distance)
+                    .slice(0, MAX_BARS);
+
+                // Step 6: Display top 3 bars on map
+                addBarMarkers(topBars, center);
+                displayResultsSummary(center, topBars, validParticipants);
+
+                updateStatus(`🎉 ${topBars.length} bar(s) idéal(aux) trouvé(s) !`, 'success');
+
+            } catch (error) {
+                console.error('Fatal error:', error);
+                updateStatus(`❌ Erreur: ${error.message}`, 'error');
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        // ============================================================
+        // MAP MARKERS & DISPLAY
+        // ============================================================
+
+        /**
+         * Add the center meeting point marker to the map
+         * @param {number} lat - Center latitude
+         * @param {number} lng - Center longitude
+         * @returns {void}
+         */
+        function addCenterMarker(lat, lng) {
+            const centerIcon = L.divIcon({
+                className: 'pulse-marker',
+                html: '<div style="width:20px;height:20px;background:#ec4899;border-radius:50%;border:3px solid white;box-shadow:0 0 15px rgba(236,72,153,0.6);"></div>',
+                iconSize: [20, 20],
+                iconAnchor: [10, 10]
+            });
+
+            const marker = L.marker([lat, lng], { icon: centerIcon })
+                .addTo(map)
+                .bindPopup(`
+                    <div class="bar-name">🎯 Point de RDV</div>
+                    <div class="bar-detail"><span class="label">Coordonnées:</span> $${lat.toFixed(5)}, $${lng.toFixed(5)}</div>
+                    <div class="bar-detail"><span class="label">Rayon de recherche:</span> ${BAR_SEARCH_RADIUS}m</div>
+                `);
+
+            markers.push(marker);
+
+            // Add search radius circle
+            searchCircle = L.circle([lat, lng], {
+                radius: BAR_SEARCH_RADIUS,
+                color: '#ec4899',
+                fillColor: '#ec4899',
+                fillOpacity: 0.05,
+                weight: 1,
+                dashArray: '5, 10'
+            }).addTo(map);
+        }
+
+        /**
+         * Add participant markers to the map
+         * @param {Array<{lat: number, lng: number, name: string, transport: string}>} points - Valid participant points
+         * @returns {void}
+         */
+        function addParticipantMarkers(points) {
+            points.forEach((/** @type {any} */ p) => {
+                const info = TRANSPORT_LABELS[p.transport] || { icon: '📍', label: '?' };
+                const weight = TRANSPORT_WEIGHTS[p.transport] || 1.0;
+
+                const icon = L.divIcon({
+                    className: '',
+                    html: `<div style="background:#374151;border:2px solid #6b7280;border-radius:8px;padding:2px 6px;font-size:14px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.3);">${info.icon}</div>`,
+                    iconSize: [30, 24],
+                    iconAnchor: [15, 12]
+                });
+
+                const marker = L.marker([p.lat, p.lng], { icon: icon })
+                    .addTo(map)
+                    .bindPopup(`
+                        <div class="bar-name">${p.name}</div>
+                        <div class="bar-detail"><span class="label">Adresse:</span> ${p.address}</div>
+                        <div class="bar-detail"><span class="label">Transport:</span> $${info.icon} $${info.label}</div>
+                        <div class="bar-detail"><span class="label">Poids:</span> ${weight.toFixed(1)}</div>
+                    `);
+
+                markers.push(marker);
+
+                // Draw line from participant to center
+                const center = calculateBarycenter(points);
+                if (center) {
+                    const line = L.polyline(
+                        [[p.lat, p.lng], [center.lat, center.lng]],
+                        { color: '#6b7280', weight: 1, opacity: 0.4, dashArray: '4, 8' }
+                    ).addTo(map);
+                    markers.push(line);
+                }
+            });
+        }
+
+        /**
+         * Add bar markers to the map with detailed popups
+         * @param {Array<{id: number, lat: number, lng: number, name: string, type: string, opening_hours: string, happy_hours: string, charge: string, distance: number}>} bars - Top bars to display
+         * @param {{lat: number, lng: number}} center - The meeting center point
+         * @returns {void}
+         */
+        function addBarMarkers(bars, center) {
+            const barIcons = ['🥇', '🥈', '🥉'];
+
+            bars.forEach((/** @type {any} */ bar, index) => {
+                const icon = L.divIcon({
+                    className: '',
+                    html: `<div style="background:#1f2937;border:2px solid #ec4899;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 4px 12px rgba(236,72,153,0.4);">${barIcons[index] || '🍺'}</div>`,
+                    iconSize: [36, 36],
+                    iconAnchor: [18, 18]
+                });
+
+                const typeLabel = formatBarType(bar.type);
+                const openingHtml = bar.opening_hours
+                    ? `<div class="bar-detail"><span class="label">🕐 Horaires:</span> ${bar.opening_hours}</div>`
+                    : `<div class="bar-detail"><span class="label">🕐 Horaires:</span> <span class="not-found">Non renseigné</span></div>`;
+
+                const happyHtml = bar.happy_hours
+                    ? `<div class="bar-detail"><span class="label">🍹 Happy Hour:</span> ${bar.happy_hours}</div>`
+                    : `<div class="bar-detail"><span class="label">🍹 Happy Hour:</span> <span class="not-found">Non renseigné</span></div>`;
+
+                const priceHtml = bar.charge
+                    ? `<div class="bar-detail"><span class="label">💰 Prix:</span> ${bar.charge}</div>`
+                    : `<div class="bar-detail"><span class="label">💰 Prix:</span> <span class="not-found">Non renseigné</span></div>`;
+
+                const distanceKm = (bar.distance / 1000).toFixed(2);
+
+                const marker = L.marker([bar.lat, bar.lng], { icon: icon })
+                    .addTo(map)
+                    .bindPopup(`
+                        <div class="bar-name">$${barIcons[index]} $${bar.name}</div>
+                        <div class="bar-detail"><span class="label">📂 Type:</span> ${typeLabel}</div>
+                        ${openingHtml}
+                        ${happyHtml}
+                        ${priceHtml}
+                        <div class="bar-distance">📏 Distance du RDV: ${distanceKm} km</div>
+                    `);
+
+                markers.push(marker);
+            });
+        }
+
+        /**
+         * Format the OSM amenity type to a readable label
+         * @param {string} type - The raw OSM amenity value
+         * @returns {string}
+         */
+        function formatBarType(type) {
+            const typeMap = {
+                'bar': '🍸 Bar',
+                'pub': '🍺 Pub',
+                'biergarten': '🌳 Biergarten',
+                'cafe': '☕ Café'
+            };
+            return typeMap[type] || `📍 ${type}`;
+        }
+
+        // ============================================================
+        // UI HELPERS
+        // ============================================================
+
+        /**
+         * Display the results summary in the sidebar
+         * @param {{lat: number, lng: number}} center - The meeting center
+         * @param {Array<{name: string, distance: number, type: string}>} bars - Top bars
+         * @param {Array<{name: string, transport: string}>} participants - Valid participants
+         * @returns {void}
+         */
+        function displayResultsSummary(center, bars, participants) {
+            const summaryEl = document.getElementById('results-summary');
+            const centerInfo = document.getElementById('center-info');
+            const barsList = document.getElementById('bars-list');
+
+            summaryEl.classList.remove('hidden');
+
+            // Center info
+            centerInfo.innerHTML = `
+                <div>📍 <strong>Lat:</strong> ${center.lat.toFixed(6)}</div>
+                <div>📍 <strong>Lng:</strong> ${center.lng.toFixed(6)}</div>
+                <div class="mt-2 text-xs text-gray-400">
+                    Pondération: ${participants.map(p => {
+                        const info = TRANSPORT_LABELS[p.transport];
+                        return `$${info ? info.icon : ''} $${info ? info.label : p.transport} (${TRANSPORT_WEIGHTS[p.transport] || 1})`;
+                    }).join(' • ')}
+                </div>
+            `;
+
+            // Bars list
+            const barIcons = ['🥇', '🥈', '🥉'];
+            barsList.innerHTML = bars.map((/** @type {any} */ bar, i) => `
+                <div class="bg-gray-700/50 rounded-lg p-3 border border-gray-600/50 flex items-center gap-3">
+                    <span class="text-xl">${barIcons[i] || '🍺'}</span>
+                    <div class="flex-1 min-w-0">
+                        <div class="text-sm font-semibold text-gray-200 truncate">${bar.name}</div>
+                        <div class="text-xs text-gray-400">$${formatBarType(bar.type)} • $${(bar.distance / 1000).toFixed(2)} km</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        /**
+         * Update the status message area
+         * @param {string} message - The message to display
+         * @param {'info'|'success'|'error'|'warning'} type - Message type
+         * @returns {void}
+         */
+        function updateStatus(message, type) {
+            const area = document.getElementById('status-area');
+            const colors = {
+                'info': 'text-blue-400 border-blue-500/30 bg-blue-500/10',
+                'success': 'text-green-400 border-green-500/30 bg-green-500/10',
+                'error': 'text-red-400 border-red-500/30 bg-red-500/10',
+                'warning': 'text-yellow-400 border-yellow-500/30 bg-yellow-500/10'
+            };
+
+            const div = document.createElement('div');
+            div.className = `text-xs px-3 py-2 rounded-lg border ${colors[type]} animate-pulse`;
+            div.textContent = message;
+            area.appendChild(div);
+
+            // Auto-remove after 6 seconds
+            setTimeout(() => {
+                div.style.opacity = '0';
