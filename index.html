@@ -19,6 +19,11 @@
             crossorigin=""></script>
 
     <style>
+        /* Dark mode via filtre CSS sur les tuiles OSM standard */
+        .leaflet-tile-pane {
+            filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
+        }
+
         /* Popup dark styling */
         .leaflet-popup-content-wrapper {
             background: #1f2937;
@@ -171,13 +176,13 @@
         <!-- Footer -->
         <footer class="p-3 border-t border-gray-700 text-center">
             <p class="text-xs text-gray-500">
-                Données © <a href="https://www.openstreetmap.org/copyright" class="text-pink-500 hover:underline">OpenStreetMap</a> & <a href="https://carto.com/" class="text-pink-500 hover:underline">CARTO</a>
+                Données © <a href="https://www.openstreetmap.org/copyright" class="text-pink-500 hover:underline">OpenStreetMap</a> contributors
             </p>
         </footer>
     </aside>
 
-    <!-- MAP AREA (Carte Leaflet dynamique) -->
-    <main class="flex-1 relative h-[50vh] md:h-screen">
+    <!-- MAP AREA -->
+    <main class="flex-1 relative h-[50vh] md:h-screen bg-gray-800">
         <div id="map" class="w-full h-full"></div>
 
         <!-- Map overlay info -->
@@ -303,7 +308,6 @@
             `;
         }
 
-        // Génère le lien structuré Google Maps
         function generateGoogleMapsBtn(lat, lng, label = "📍 Ouvrir dans Google Maps") {
             const url = `https://google.com/maps/search/?api=1&query=${lat},${lng}`;
             return `
@@ -315,7 +319,7 @@
         }
 
         // ============================================================
-        // INITIALIZATION
+        // INITIALIZATION (CORRIGÉ POUR MOBILE)
         // ============================================================
 
         function initMap() {
@@ -324,13 +328,13 @@
                 attributionControl: false
             }).setView([48.8566, 2.3522], 12); // Paris par défaut
 
-            // Tuiles CARTO Dark Matter : Mode sombre natif sans bug de filtre CSS
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            // Tuiles OpenStreetMap standards (fonctionnent toujours, sans blocage)
+            L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 maxZoom: 19,
-                subdomains: 'abcd'
+                attribution: '&copy; OpenStreetMap'
             }).addTo(map);
 
-            // Corrige le problème de taille de carte sur certains navigateurs
+            // Corrige le problème de taille de carte sur les navigateurs mobiles
             setTimeout(() => {
                 map.invalidateSize();
             }, 300);
@@ -475,7 +479,7 @@
                     updateStatus(`❌ Adresse introuvable: "${address}"`, 'error');
                 }
 
-                if (i < count - 1) await sleep(NOMINATIM_DELAY); // Strict compliance
+                if (i < count - 1) await sleep(NOMINATIM_DELAY); // Respecte les CGU OSM
             }
             return results;
         }
@@ -512,7 +516,6 @@
                 out center body 50;
             `;
 
-            // Utilisation de plusieurs endpoints pour assurer la stabilité
             const overpassEndpoints = [
                 'https://overpass-api.de/api/interpreter',
                 'https://overpass.kumi.systems/api/interpreter'
@@ -564,11 +567,11 @@
         }
 
         // ============================================================
-        // DISTANCE CALCULATION (Formule de Haversine)
+        // DISTANCE CALCULATION
         // ============================================================
 
         function haversineDistance(lat1, lng1, lat2, lng2) {
-            const R = 6371000; // Rayon de la Terre en mètres
+            const R = 6371000;
             const dLat = toRad(lat2 - lat1);
             const dLng = toRad(lng2 - lng1);
             const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
@@ -612,11 +615,9 @@
                     return;
                 }
 
-                // Affichage du point central et des participants sur la carte
                 addCenterMarker(center.lat, center.lng);
                 addParticipantMarkers(validParticipants);
                 
-                // Recentre la carte sur le point calculé
                 map.setView([center.lat, center.lng], 14, { animate: true });
                 document.getElementById('map-overlay').classList.remove('hidden');
 
@@ -632,7 +633,6 @@
 
                 updateStatus('📊 Calcul des distances et classement...', 'info');
                 
-                // Trie par distance et garde le top 3
                 const barsWithDistance = bars.map(bar => ({
                     ...bar,
                     distance: haversineDistance(center.lat, center.lng, bar.lat, bar.lng)
@@ -642,13 +642,11 @@
                     .sort((a, b) => a.distance - b.distance)
                     .slice(0, MAX_BARS);
 
-                // Ajoute les pings des bars sur la carte
                 addBarMarkers(topBars, center);
                 displayResultsSummary(center, topBars, validParticipants);
 
                 updateStatus(`🎉 ${topBars.length} bar(s) idéal(aux) trouvé(s) !`, 'success');
 
-                // Ajuste le zoom pour tout inclure
                 const allLats = validParticipants.map(p => p.lat).concat(topBars.map(b => b.lat));
                 const allLngs = validParticipants.map(p => p.lng).concat(topBars.map(b => b.lng));
                 map.fitBounds([
@@ -689,7 +687,6 @@
 
             markers.push(marker);
 
-            // Dessine le cercle de recherche
             searchCircle = L.circle([lat, lng], {
                 radius: BAR_SEARCH_RADIUS,
                 color: '#ec4899',
@@ -723,7 +720,6 @@
 
                 markers.push(marker);
 
-                // Ligne pointillée vers le centre
                 const center = calculateBarycenter(points);
                 if (center) {
                     const line = L.polyline(
