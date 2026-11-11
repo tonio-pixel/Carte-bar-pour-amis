@@ -57,7 +57,7 @@
             text-align: center;
         }
 
-        /* Custom marker pulse animation */
+        /* Custom marker pulse animation pour le point de RDV */
         .pulse-marker {
             border-radius: 50%;
             background: rgba(236, 72, 153, 0.4);
@@ -122,7 +122,7 @@
         <!-- Form Area -->
         <div class="flex-1 overflow-y-auto p-5 custom-scroll">
             <div id="participants-container" class="space-y-4">
-                <!-- Dynamic participant fields injected here -->
+                <!-- Les participants s'ajoutent ici dynamiquement -->
             </div>
 
             <!-- Add participant button -->
@@ -145,7 +145,7 @@
                 </button>
             </div>
 
-            <!-- Status messages -->
+            <!-- Status messages (Logs) -->
             <div id="status-area" class="mt-4 space-y-2"></div>
 
             <!-- Results summary -->
@@ -171,17 +171,17 @@
         <!-- Footer -->
         <footer class="p-3 border-t border-gray-700 text-center">
             <p class="text-xs text-gray-500">
-                Données © <a href="https://www.openstreetmap.org/copyright" class="text-pink-500 hover:underline">OpenStreetMap</a> contributors
+                Données © <a href="https://www.openstreetmap.org/copyright" class="text-pink-500 hover:underline">OpenStreetMap</a> & <a href="https://carto.com/" class="text-pink-500 hover:underline">CARTO</a>
             </p>
         </footer>
     </aside>
 
-    <!-- MAP AREA -->
+    <!-- MAP AREA (Carte Leaflet dynamique) -->
     <main class="flex-1 relative h-[50vh] md:h-screen">
         <div id="map" class="w-full h-full"></div>
 
         <!-- Map overlay info -->
-        <div id="map-overlay" class="absolute top-4 right-4 z-[1000] bg-gray-800/90 backdrop-blur-sm rounded-xl px-4 py-2 text-xs text-gray-300 border border-gray-600 hidden shadow-lg">
+        <div id="map-overlay" class="absolute top-4 right-4 z-[1000] bg-gray-800/90 backdrop-blur-sm rounded-xl px-4 py-2 text-xs text-gray-300 border border-gray-600 hidden shadow-lg transition-opacity duration-300">
             <span class="text-pink-400 font-bold">🎯</span> Point d'équidistance trouvé
         </div>
     </main>
@@ -205,9 +205,9 @@
             'driving': { label: 'Voiture', icon: '🚗', weight: 1.0 }
         };
 
-        const BAR_SEARCH_RADIUS = 5000;
+        const BAR_SEARCH_RADIUS = 5000; // Rayon de 5km
         const MAX_BARS = 3;
-        const NOMINATIM_DELAY = 1000;
+        const NOMINATIM_DELAY = 1000; // Délai strict imposé par Nominatim
         const MAX_PARTICIPANTS = 5;
 
         // ============================================================
@@ -303,6 +303,7 @@
             `;
         }
 
+        // Génère le lien structuré Google Maps
         function generateGoogleMapsBtn(lat, lng, label = "📍 Ouvrir dans Google Maps") {
             const url = `https://google.com/maps/search/?api=1&query=${lat},${lng}`;
             return `
@@ -320,20 +321,19 @@
         function initMap() {
             map = L.map('map', {
                 zoomControl: true,
-                attributionControl: true
-            }).setView([48.8566, 2.3522], 12);
+                attributionControl: false
+            }).setView([48.8566, 2.3522], 12); // Paris par défaut
 
-            // CARTO Dark Matter Tiles (Clean native dark mode, free, no API key)
+            // Tuiles CARTO Dark Matter : Mode sombre natif sans bug de filtre CSS
             L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
                 maxZoom: 19,
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
                 subdomains: 'abcd'
             }).addTo(map);
 
-            // Fix potential flex container sizing bugs on load
+            // Corrige le problème de taille de carte sur certains navigateurs
             setTimeout(() => {
                 map.invalidateSize();
-            }, 200);
+            }, 300);
 
             window.addEventListener('resize', () => {
                 map.invalidateSize();
@@ -385,7 +385,7 @@
                 <div class="space-y-2">
                     <input type="text"
                            id="address-${index}"
-                           placeholder="Adresse de départ (ex: 12 Rue de Rivoli, Paris)"
+                           placeholder="Ex: 10 rue de la République, Lyon"
                            class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500/30 transition-all"
                            autocomplete="off">
                     <select id="transport-${index}"
@@ -475,7 +475,7 @@
                     updateStatus(`❌ Adresse introuvable: "${address}"`, 'error');
                 }
 
-                if (i < count - 1) await sleep(NOMINATIM_DELAY);
+                if (i < count - 1) await sleep(NOMINATIM_DELAY); // Strict compliance
             }
             return results;
         }
@@ -512,15 +512,15 @@
                 out center body 50;
             `;
 
+            // Utilisation de plusieurs endpoints pour assurer la stabilité
             const overpassEndpoints = [
                 'https://overpass-api.de/api/interpreter',
-                'https://overpass.kumi.systems/api/interpreter',
-                'https://overpass.private.coffee/api/interpreter'
+                'https://overpass.kumi.systems/api/interpreter'
             ];
 
             for (let i = 0; i < overpassEndpoints.length; i++) {
                 try {
-                    updateStatus(`🔍 Recherche de bars (endpoint ${i + 1})...`, 'info');
+                    updateStatus(`🔍 Recherche de bars...`, 'info');
                     const response = await fetch(overpassEndpoints[i], {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -534,10 +534,8 @@
                         return parseOverpassResults(data.elements);
                     }
                 } catch (error) {
-                    console.warn(`Overpass endpoint ${i + 1} failed:`, error);
-                    if (i < overpassEndpoints.length - 1) {
-                        await sleep(1000);
-                    }
+                    console.warn(`Overpass endpoint failed:`, error);
+                    if (i < overpassEndpoints.length - 1) await sleep(1000);
                 }
             }
             return [];
@@ -566,11 +564,11 @@
         }
 
         // ============================================================
-        // DISTANCE CALCULATION
+        // DISTANCE CALCULATION (Formule de Haversine)
         // ============================================================
 
         function haversineDistance(lat1, lng1, lat2, lng2) {
-            const R = 6371000;
+            const R = 6371000; // Rayon de la Terre en mètres
             const dLat = toRad(lat2 - lat1);
             const dLng = toRad(lng2 - lng1);
             const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
@@ -614,9 +612,12 @@
                     return;
                 }
 
+                // Affichage du point central et des participants sur la carte
                 addCenterMarker(center.lat, center.lng);
                 addParticipantMarkers(validParticipants);
-                map.setView([center.lat, center.lng], 14);
+                
+                // Recentre la carte sur le point calculé
+                map.setView([center.lat, center.lng], 14, { animate: true });
                 document.getElementById('map-overlay').classList.remove('hidden');
 
                 updateStatus('🍺 Recherche des bars à proximité (Rayon 5km)...', 'info');
@@ -630,6 +631,8 @@
                 }
 
                 updateStatus('📊 Calcul des distances et classement...', 'info');
+                
+                // Trie par distance et garde le top 3
                 const barsWithDistance = bars.map(bar => ({
                     ...bar,
                     distance: haversineDistance(center.lat, center.lng, bar.lat, bar.lng)
@@ -639,10 +642,19 @@
                     .sort((a, b) => a.distance - b.distance)
                     .slice(0, MAX_BARS);
 
+                // Ajoute les pings des bars sur la carte
                 addBarMarkers(topBars, center);
                 displayResultsSummary(center, topBars, validParticipants);
 
                 updateStatus(`🎉 ${topBars.length} bar(s) idéal(aux) trouvé(s) !`, 'success');
+
+                // Ajuste le zoom pour tout inclure
+                const allLats = validParticipants.map(p => p.lat).concat(topBars.map(b => b.lat));
+                const allLngs = validParticipants.map(p => p.lng).concat(topBars.map(b => b.lng));
+                map.fitBounds([
+                    [Math.min(...allLats), Math.min(...allLngs)],
+                    [Math.max(...allLats), Math.max(...allLngs)]
+                ], { padding: [50, 50] });
 
             } catch (error) {
                 console.error('Fatal error:', error);
@@ -677,11 +689,12 @@
 
             markers.push(marker);
 
+            // Dessine le cercle de recherche
             searchCircle = L.circle([lat, lng], {
                 radius: BAR_SEARCH_RADIUS,
                 color: '#ec4899',
                 fillColor: '#ec4899',
-                fillOpacity: 0.05,
+                fillOpacity: 0.03,
                 weight: 1,
                 dashArray: '5, 10'
             }).addTo(map);
@@ -710,11 +723,12 @@
 
                 markers.push(marker);
 
+                // Ligne pointillée vers le centre
                 const center = calculateBarycenter(points);
                 if (center) {
                     const line = L.polyline(
                         [[p.lat, p.lng], [center.lat, center.lng]],
-                        { color: '#6b7280', weight: 1.5, opacity: 0.5, dashArray: '4, 8' }
+                        { color: '#9ca3af', weight: 1.5, opacity: 0.4, dashArray: '5, 10' }
                     ).addTo(map);
                     markers.push(line);
                 }
@@ -823,4 +837,3 @@
     </script>
 </body>
 </html>
-
