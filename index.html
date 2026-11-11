@@ -385,18 +385,75 @@
             return results;
         }
 
-        // ============================================================
-        // BARYCENTER
-        // ============================================================
-        function calculateBarycenter(points) {
-            const valid = points.map(p => ({ lat: p.lat, lng: p.lng, weight: TRANSPORT_WEIGHTS[p.transport] || 1.0 }));
-            if (!valid.length) return null;
-            const total = valid.reduce((s, p) => s + p.weight, 0);
-            if (total === 0) return null;
-            const lat = valid.reduce((s, p) => s + p.lat * p.weight, 0) / total;
-            const lng = valid.reduce((s, p) => s + p.lng * p.weight, 0) / total;
-            return { lat, lng };
+// ============================================================
+// BARYCENTER — version corrigée (projection sphérique + ancrage)
+// ============================================================
+
+// Convertit lat/lng en vecteur unitaire 3D (précis sur tout le globe)
+function toVector(lat, lng) {
+    const φ = lat * Math.PI / 180, λ = lng * Math.PI / 180;
+    return {
+        x: Math.cos(φ) * Math.cos(λ),
+        y: Math.cos(φ) * Math.sin(λ),
+        z: Math.sin(φ)
+    };
+}
+
+// Repasse d'un vecteur 3D vers lat/lng
+function toLatLng(v) {
+    const lat = Math.atan2(v.z, Math.hypot(v.x, v.y)) * 180 / Math.PI;
+    const lng = Math.atan2(v.y, v.x) * 180 / Math.PI;
+    return { lat, lng };
+}
+
+// Barycentre pondéré sur la sphère (corrige la distortion lat/lng)
+function computeWeightedCenter(points) {
+    const valid = points
+        .map(p => ({ ...toVector(p.lat, p.lng), weight: TRANSPORT_WEIGHTS[p.transport] || 1.0 }))
+        .filter(p => isFinite(p.weight) && p.weight > 0);
+    if (!valid.length) return null;
+
+    const total = valid.reduce((s, p) => s + p.weight, 0);
+    if (total === 0) return null;
+
+    const cx = valid.reduce((s, p) => s + p.x * p.weight, 0) / total;
+    const cy = valid.reduce((s, p) => s + p.y * p.weight, 0) / total;
+    const cz = valid.reduce((s, p) => s + p.z * p.weight, 0) / total;
+
+    // Garde-fou : si les points sont quasi opposés (ex. deux hémisphères),
+    // le centre tombe au cœur de la Terre → on retombe sur la médiane simple.
+    if (Math.hypot(cx, cy, cz) < 1e-6) {
+        const lats = points.map(p => p.lat).sort((a, b) => a - b);
+        const lngs = points.map(p => p.lng).sort((a, b) => a - b);
+        const mid = (arr) => arr.length % 2 ? arr[(arr.length - 1) / 2]
+            : (arr[arr.length / 2 - 1] + arr[arr.length / 2]) / 2;
+        return { lat: mid(lats), lng: mid(lngs) };
+    }
+    return toLatLng({ x: cx, y: cy, z: cz });
+}
+
+// Ramène le point sur la route/zone habitée la plus proche (évite le point en mer/campagne)
+async function snapToNearestPlace(lat, lng) {
+    try {
+        const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=16&addressdetails=0&email=${encodeURIComponent(CONTACT_EMAIL)}`;
+        const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+        if (!res.ok) return { lat, lng };
+        const data = await res.json();
+        if (data && data.lat && data.lon) {
+            return { lat: parseFloat(data.lat), lng: parseFloat(data.lon), displayName: data.display_name };
         }
+    } catch (e) {
+        console.warn('Snap failed, on garde le point brut :', e);
+    }
+    return { lat, lng };
+}
+
+// Point d'équidistance final = centre sphérique + ancrage sur du réel
+async function calculateBarycenter(points) {
+    const raw = computeWeightedCenter(points);
+    if (!raw) return null;
+    return await snapToNearestPlace(raw.lat, raw.lng);
+}
 
         // ============================================================
         // BAR SEARCH (OVERPASS)
@@ -450,54 +507,54 @@
             return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         }
 
-        // ============================================================
-        // MAIN LOGIC
-        // ============================================================
-        async function findMeetingPoint() {
-            clearMap(); hideStatus();
-            document.getElementById('results-summary').classList.add('hidden');
-            document.getElementById('map-overlay').classList.add('hidden');
-            setLoading(true);
-            try {
-                updateStatus('📍 Géocodage des adresses en cours...', 'info');
-                participants = await geocodeAllParticipants();
-                const valid = participants.filter(p => p.lat != null && p.lng != null);
-                if (valid.length < 2) { updateStatus('⚠️ Au moins 2 adresses valides sont requises.', 'error'); return; }
+       // ============================================================
+       // MAIN LOGIC
+       // ============================================================
+async function findMeetingPoint() {
+    clearMap(); hideStatus();
+    document.getElementById('results-summary').classList.add('hidden');
+    document.getElementById('map-overlay').classList.add('hidden');
+    setLoading(true);
+    try {
+        updateStatus('📍 Géocodage des adresses en cours...', 'info');
+        participants = await geocodeAllParticipants();
+        const valid = participants.filter(p => p.lat != null && p.lng != null);
+        if (valid.length < 2) { updateStatus('⚠️ Au moins 2 adresses valides sont requises.', 'error'); return; }
 
-                updateStatus('⚖️ Calcul du point d\'équidistance pondéré...', 'info');
-                const center = calculateBarycenter(valid);
-                if (!center) { updateStatus('❌ Impossible de calculer le centre.', 'error'); return; }
+        updateStatus('⚖️ Calcul du point d\'équidistance pondéré...', 'info');
+        const center = await calculateBarycenter(valid);
+        if (!center) { updateStatus('❌ Impossible de calculer le centre.', 'error'); return; }
 
-                addCenterMarker(center.lat, center.lng);
-                addParticipantMarkers(valid, center);   // FIX #3 : on passe le center
-                map.setView([center.lat, center.lng], 14, { animate: true });
-                document.getElementById('map-overlay').classList.remove('hidden');
+        addCenterMarker(center.lat, center.lng);
+        addParticipantMarkers(valid, center);
+        map.setView([center.lat, center.lng], 14, { animate: true });
+        document.getElementById('map-overlay').classList.remove('hidden');
 
-                updateStatus('🍺 Recherche des bars à proximité (Rayon 5km)...', 'info');
-                const bars = await searchBars(center.lat, center.lng, BAR_SEARCH_RADIUS);
-                if (bars.length === 0) {
-                    updateStatus('⚠️ Aucun bar trouvé. Élargissez la zone ou changez d\'adresses.', 'warning');
-                    displayResultsSummary(center, [], valid);
-                    return;
-                }
-
-                const ranked = bars.map(b => ({ ...b, distance: haversineDistance(center.lat, center.lng, b.lat, b.lng) }))
-                                   .sort((a, b) => a.distance - b.distance).slice(0, MAX_BARS);
-                addBarMarkers(ranked);
-                displayResultsSummary(center, ranked, valid);
-                updateStatus(`🎉 ${ranked.length} bar(s) idéal(aux) trouvé(s) !`, 'success');
-
-                const allLats = valid.map(p => p.lat).concat(ranked.map(b => b.lat));
-                const allLngs = valid.map(p => p.lng).concat(ranked.map(b => b.lng));
-                map.fitBounds([[Math.min(...allLats), Math.min(...allLngs)], [Math.max(...allLats), Math.max(...allLngs)]], { padding: [50, 50] });
-                refreshMapSize(400);  // FIX #2 : recale après fitBounds animé
-            } catch (error) {
-                console.error('Fatal error:', error);
-                updateStatus(`❌ Erreur: ${error.message}`, 'error');
-            } finally {
-                setLoading(false);
-            }
+        updateStatus('🍺 Recherche des bars à proximité (Rayon 5km)...', 'info');
+        const bars = await searchBars(center.lat, center.lng, BAR_SEARCH_RADIUS);
+        if (bars.length === 0) {
+            updateStatus('⚠️ Aucun bar trouvé. Élargissez la zone ou changez d\'adresses.', 'warning');
+            displayResultsSummary(center, [], valid);
+            return;
         }
+
+        const ranked = bars.map(b => ({ ...b, distance: haversineDistance(center.lat, center.lng, b.lat, b.lng) }))
+                           .sort((a, b) => a.distance - b.distance).slice(0, MAX_BARS);
+        addBarMarkers(ranked);
+        displayResultsSummary(center, ranked, valid);
+        updateStatus(`🎉 ${ranked.length} bar(s) idéal(aux) trouvé(s) !`, 'success');
+
+        const allLats = valid.map(p => p.lat).concat(ranked.map(b => b.lat));
+        const allLngs = valid.map(p => p.lng).concat(ranked.map(b => b.lng));
+        map.fitBounds([[Math.min(...allLats), Math.min(...allLngs)], [Math.max(...allLats), Math.max(...allLngs)]], { padding: [50, 50] });
+        refreshMapSize(400);
+    } catch (error) {
+        console.error('Fatal error:', error);
+        updateStatus(`❌ Erreur: ${error.message}`, 'error');
+    } finally {
+        setLoading(false);
+    }
+}
 
         // ============================================================
         // MARKERS
