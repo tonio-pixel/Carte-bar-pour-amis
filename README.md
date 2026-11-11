@@ -1,11 +1,6 @@
 # 🍻 Meet at the Bar
 
-> Trouvez le bar parfait au point d'équidistance de votre groupe d'amis.
-
-## 📸 Aperçu de l'application
-
-![Aperçu de la carte Meet at the Bar](screenshot.png)
-*(Remplace `screenshot.png` par une capture d'écran de ton application affichant la carte en mode sombre et les points de repère)*
+> Trouvez le bar parfait au point d'équidistance de votre groupe d'amis. 
 
 ## 📖 Description
 
