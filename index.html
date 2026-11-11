@@ -24,6 +24,16 @@
             filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
         }
 
+        /* Verrouillage absolu de la carte pour éviter le bug mobile (carré gris) */
+        #map {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
         /* Popup dark styling */
         .leaflet-popup-content-wrapper {
             background: #1f2937;
@@ -32,64 +42,24 @@
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
             width: 280px;
         }
-
-        .leaflet-popup-tip {
-            background: #1f2937;
-        }
-
-        .leaflet-popup-content {
-            margin: 14px;
-            font-family: 'Segoe UI', system-ui, sans-serif;
-            font-size: 13px;
-            line-height: 1.5;
-        }
-
-        .leaflet-popup-content .bar-name {
-            font-size: 16px;
-            font-weight: 700;
-            color: #ec4899;
-            margin-bottom: 8px;
-            border-bottom: 1px solid #374151;
-            padding-bottom: 6px;
-        }
-
-        .leaflet-popup-content .bar-distance {
-            margin-top: 10px;
-            padding-top: 8px;
-            border-top: 1px solid #374151;
-            font-weight: 600;
-            color: #f472b6;
-            text-align: center;
-        }
+        .leaflet-popup-tip { background: #1f2937; }
+        .leaflet-popup-content { margin: 14px; font-family: 'Segoe UI', system-ui, sans-serif; font-size: 13px; line-height: 1.5; }
+        .leaflet-popup-content .bar-name { font-size: 16px; font-weight: 700; color: #ec4899; margin-bottom: 8px; border-bottom: 1px solid #374151; padding-bottom: 6px; }
+        .leaflet-popup-content .bar-distance { margin-top: 10px; padding-top: 8px; border-top: 1px solid #374151; font-weight: 600; color: #f472b6; text-align: center; }
 
         /* Custom marker pulse animation pour le point de RDV */
-        .pulse-marker {
-            border-radius: 50%;
-            background: rgba(236, 72, 153, 0.4);
-            animation: pulse 2s infinite;
-        }
-
+        .pulse-marker { border-radius: 50%; background: rgba(236, 72, 153, 0.4); animation: pulse 2s infinite; }
         @keyframes pulse {
             0% { transform: scale(1); opacity: 1; }
             50% { transform: scale(1.8); opacity: 0.4; }
             100% { transform: scale(1); opacity: 1; }
         }
 
-        /* Scrollbar styling */
-        .custom-scroll::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .custom-scroll::-webkit-scrollbar-track {
-            background: #1f2937;
-        }
-
-        .custom-scroll::-webkit-scrollbar-thumb {
-            background: #ec4899;
-            border-radius: 3px;
-        }
-
-        /* Loading spinner */
+        /* Scrollbar et Loading spinner */
+        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #1f2937; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #ec4899; border-radius: 3px; }
+        
         .spinner {
             border: 3px solid rgba(236, 72, 153, 0.2);
             border-top: 3px solid #ec4899;
@@ -99,23 +69,18 @@
             animation: spin 0.8s linear infinite;
             display: inline-block;
         }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        
-        .leaflet-popup-content a:hover {
-            color: #93c5fd !important;
-        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .leaflet-popup-content a:hover { color: #93c5fd !important; }
     </style>
 </head>
-<body class="bg-gray-900 text-gray-100 min-h-screen flex flex-col md:flex-row overflow-hidden">
+
+<!-- Utilisation de h-[100dvh] pour contrer la barre d'adresse sur mobile -->
+<body class="bg-gray-900 text-gray-100 h-[100dvh] w-screen flex flex-col md:flex-row overflow-hidden">
 
     <!-- LEFT PANEL -->
-    <aside class="w-full md:w-[420px] lg:w-[480px] bg-gray-800 border-r border-gray-700 flex flex-col h-[50vh] md:h-screen overflow-hidden z-20 relative">
+    <aside class="w-full md:w-[420px] lg:w-[480px] h-[55dvh] md:h-full bg-gray-800 border-r border-gray-700 flex flex-col z-20 shrink-0 shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
 
-        <!-- Header -->
-        <header class="p-5 border-b border-gray-700 bg-gray-800/95 backdrop-blur-sm">
+        <header class="p-5 border-b border-gray-700 bg-gray-800/95 backdrop-blur-sm shrink-0">
             <h1 class="text-2xl font-bold text-white flex items-center gap-2">
                 <span class="text-3xl">🍻</span> Meet at the Bar
             </h1>
@@ -124,38 +89,27 @@
             </p>
         </header>
 
-        <!-- Form Area -->
         <div class="flex-1 overflow-y-auto p-5 custom-scroll">
-            <div id="participants-container" class="space-y-4">
-                <!-- Les participants s'ajoutent ici dynamiquement -->
-            </div>
+            <div id="participants-container" class="space-y-4"></div>
 
-            <!-- Add participant button -->
-            <button id="btn-add-participant"
-                    class="mt-4 w-full py-2 px-4 border-2 border-dashed border-gray-600 rounded-xl text-gray-400 hover:border-pink-500 hover:text-pink-400 transition-all duration-200 text-sm font-medium flex items-center justify-center gap-2">
+            <button id="btn-add-participant" class="mt-4 w-full py-2 px-4 border-2 border-dashed border-gray-600 rounded-xl text-gray-400 hover:border-pink-500 hover:text-pink-400 transition-all duration-200 text-sm font-medium flex items-center justify-center gap-2">
                 <span class="text-lg">+</span> Ajouter un participant
             </button>
 
-            <!-- Action buttons -->
             <div class="mt-6 space-y-3">
-                <button id="btn-find"
-                        class="w-full py-3 px-4 bg-pink-600 hover:bg-pink-500 text-white font-bold rounded-xl transition-all duration-200 shadow-lg shadow-pink-600/20 hover:shadow-pink-500/30 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                <button id="btn-find" class="w-full py-3 px-4 bg-pink-600 hover:bg-pink-500 text-white font-bold rounded-xl transition-all duration-200 shadow-lg shadow-pink-600/20 hover:shadow-pink-500/30 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
                     <span id="btn-find-text">🎯 Calculer le point de RDV</span>
                     <div id="btn-find-spinner" class="spinner hidden"></div>
                 </button>
 
-                <button id="btn-reset"
-                        class="w-full py-2 px-4 bg-gray-700 hover:bg-gray-600 text-gray-300 font-medium rounded-xl transition-all duration-200 text-sm">
+                <button id="btn-reset" class="w-full py-2 px-4 bg-gray-700 hover:bg-gray-600 text-gray-300 font-medium rounded-xl transition-all duration-200 text-sm">
                     ↺ Réinitialiser
                 </button>
             </div>
 
-            <!-- Status messages (Logs) -->
             <div id="status-area" class="mt-4 space-y-2"></div>
 
-            <!-- Results summary -->
             <div id="results-summary" class="mt-5 hidden pb-6">
-                <!-- Centre calculé -->
                 <div class="bg-gray-700/50 rounded-xl p-4 border border-gray-600 shadow-inner">
                     <h3 class="text-sm font-bold text-pink-400 uppercase tracking-wide mb-3 flex items-center gap-2">
                         <span>🎯</span> Point de RDV calculé
@@ -163,7 +117,6 @@
                     <div id="center-info" class="text-sm text-gray-300 space-y-2"></div>
                 </div>
 
-                <!-- Top 3 Bars -->
                 <div class="mt-6">
                     <h3 class="text-sm font-bold text-pink-400 uppercase tracking-wide mb-3 flex items-center gap-2">
                         <span>🏆</span> Le Top 3
@@ -173,19 +126,17 @@
             </div>
         </div>
 
-        <!-- Footer -->
-        <footer class="p-3 border-t border-gray-700 text-center">
+        <footer class="p-3 border-t border-gray-700 text-center shrink-0">
             <p class="text-xs text-gray-500">
                 Données © <a href="https://www.openstreetmap.org/copyright" class="text-pink-500 hover:underline">OpenStreetMap</a> contributors
             </p>
         </footer>
     </aside>
 
-    <!-- MAP AREA -->
-    <main class="flex-1 relative h-[50vh] md:h-screen bg-gray-800">
-        <div id="map" class="w-full h-full"></div>
+    <!-- MAP AREA (Fixée pour prendre le reste de l'écran proprement) -->
+    <main class="w-full flex-1 relative z-10 bg-gray-900 overflow-hidden">
+        <div id="map"></div>
 
-        <!-- Map overlay info -->
         <div id="map-overlay" class="absolute top-4 right-4 z-[1000] bg-gray-800/90 backdrop-blur-sm rounded-xl px-4 py-2 text-xs text-gray-300 border border-gray-600 hidden shadow-lg transition-opacity duration-300">
             <span class="text-pink-400 font-bold">🎯</span> Point d'équidistance trouvé
         </div>
@@ -210,14 +161,10 @@
             'driving': { label: 'Voiture', icon: '🚗', weight: 1.0 }
         };
 
-        const BAR_SEARCH_RADIUS = 5000; // Rayon de 5km
+        const BAR_SEARCH_RADIUS = 5000;
         const MAX_BARS = 3;
-        const NOMINATIM_DELAY = 1000; // Délai strict imposé par Nominatim
+        const NOMINATIM_DELAY = 1000;
         const MAX_PARTICIPANTS = 5;
-
-        // ============================================================
-        // STATE MANAGEMENT
-        // ============================================================
 
         let participants = [];
         let map = null;
@@ -269,79 +216,42 @@
         }
 
         function generateBarDetailsHTML(bar) {
-            const getVal = (val) => val 
-                ? `<span class="font-bold text-gray-100">${val}</span>` 
-                : `<span class="italic text-gray-500 text-xs">Non renseigné</span>`;
-
+            const getVal = (val) => val ? `<span class="font-bold text-gray-100">${val}</span>` : `<span class="italic text-gray-500 text-xs">Non renseigné</span>`;
             const hhBadge = bar.happy_hours
                 ? `<span class="bg-green-500/20 text-green-400 px-2 py-0.5 rounded text-[10px] font-bold uppercase border border-green-500/30">Oui</span>`
                 : `<span class="bg-gray-600/30 text-gray-400 px-2 py-0.5 rounded text-[10px] font-bold uppercase border border-gray-600/50">Non renseigné</span>`;
 
             return `
                 <div class="space-y-1.5 text-xs text-gray-300 mt-2">
-                    <div class="flex items-start gap-2">
-                        <span class="w-4 text-center">📂</span>
-                        <span class="w-24 text-gray-400">Type :</span>
-                        <span class="flex-1">${getVal(formatBarType(bar.type))}</span>
-                    </div>
-                    <div class="flex items-start gap-2">
-                        <span class="w-4 text-center">💰</span>
-                        <span class="w-24 text-gray-400">Prix :</span>
-                        <span class="flex-1">${getVal(bar.price)}</span>
-                    </div>
-                    <div class="flex items-start gap-2">
-                        <span class="w-4 text-center">🍹</span>
-                        <span class="w-24 text-gray-400">Happy Hour :</span>
-                        <span class="flex-1">${hhBadge}</span>
-                    </div>
-                    <div class="flex items-start gap-2">
-                        <span class="w-4 text-center">⏱️</span>
-                        <span class="w-24 text-gray-400">Horaires HH :</span>
-                        <span class="flex-1">${getVal(bar.happy_hours)}</span>
-                    </div>
-                    <div class="flex items-start gap-2">
-                        <span class="w-4 text-center">🕐</span>
-                        <span class="w-24 text-gray-400">Ouverture :</span>
-                        <span class="flex-1">${getVal(bar.opening_hours)}</span>
-                    </div>
+                    <div class="flex items-start gap-2"><span class="w-4 text-center">📂</span><span class="w-24 text-gray-400">Type :</span><span class="flex-1">${getVal(formatBarType(bar.type))}</span></div>
+                    <div class="flex items-start gap-2"><span class="w-4 text-center">💰</span><span class="w-24 text-gray-400">Prix :</span><span class="flex-1">${getVal(bar.price)}</span></div>
+                    <div class="flex items-start gap-2"><span class="w-4 text-center">🍹</span><span class="w-24 text-gray-400">Happy Hour :</span><span class="flex-1">${hhBadge}</span></div>
+                    <div class="flex items-start gap-2"><span class="w-4 text-center">⏱️</span><span class="w-24 text-gray-400">Horaires HH :</span><span class="flex-1">${getVal(bar.happy_hours)}</span></div>
+                    <div class="flex items-start gap-2"><span class="w-4 text-center">🕐</span><span class="w-24 text-gray-400">Ouverture :</span><span class="flex-1">${getVal(bar.opening_hours)}</span></div>
                 </div>
             `;
         }
 
         function generateGoogleMapsBtn(lat, lng, label = "📍 Ouvrir dans Google Maps") {
             const url = `https://google.com/maps/search/?api=1&query=${lat},${lng}`;
-            return `
-                <a href="${url}" target="_blank" 
-                   class="mt-3 flex items-center justify-center gap-2 w-full py-2 px-3 bg-blue-600/20 hover:bg-blue-600/40 border border-blue-500/50 text-blue-400 hover:text-blue-300 font-bold rounded-lg transition-colors text-xs shadow-sm">
-                    ${label}
-                </a>
-            `;
+            return `<a href="${url}" target="_blank" class="mt-3 flex items-center justify-center gap-2 w-full py-2 px-3 bg-blue-600/20 hover:bg-blue-600/40 border border-blue-500/50 text-blue-400 hover:text-blue-300 font-bold rounded-lg transition-colors text-xs shadow-sm">${label}</a>`;
         }
 
         // ============================================================
-        // INITIALIZATION (CORRIGÉ POUR MOBILE)
+        // INITIALIZATION
         // ============================================================
 
         function initMap() {
-            map = L.map('map', {
-                zoomControl: true,
-                attributionControl: false
-            }).setView([48.8566, 2.3522], 12); // Paris par défaut
+            map = L.map('map', { zoomControl: true, attributionControl: false }).setView([48.8566, 2.3522], 12);
 
-            // Tuiles OpenStreetMap standards (fonctionnent toujours, sans blocage)
+            // Tuiles OpenStreetMap (Garanties de charger sans erreur API)
             L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 maxZoom: 19,
                 attribution: '&copy; OpenStreetMap'
             }).addTo(map);
 
-            // Corrige le problème de taille de carte sur les navigateurs mobiles
-            setTimeout(() => {
-                map.invalidateSize();
-            }, 300);
-
-            window.addEventListener('resize', () => {
-                map.invalidateSize();
-            });
+            setTimeout(() => { map.invalidateSize(); }, 500);
+            window.addEventListener('resize', () => { map.invalidateSize(); });
         }
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -351,11 +261,8 @@
 
             document.getElementById('btn-add-participant').addEventListener('click', () => {
                 const count = getParticipantRowCount();
-                if (count < MAX_PARTICIPANTS) {
-                    createParticipantRow(count);
-                } else {
-                    updateStatus(`Maximum de ${MAX_PARTICIPANTS} participants atteint.`, 'warning');
-                }
+                if (count < MAX_PARTICIPANTS) createParticipantRow(count);
+                else updateStatus(`Maximum de ${MAX_PARTICIPANTS} participants atteint.`, 'warning');
             });
 
             document.getElementById('btn-find').addEventListener('click', findMeetingPoint);
@@ -377,23 +284,14 @@
             const row = document.createElement('div');
             row.className = 'bg-gray-700/40 rounded-xl p-4 border border-gray-600/50 hover:border-gray-500/50 transition-colors';
             row.id = `participant-row-${index}`;
-
             row.innerHTML = `
                 <div class="flex items-center justify-between mb-3">
-                    <span class="text-sm font-bold text-gray-300 flex items-center gap-2">
-                        <span class="w-6 h-6 rounded-full bg-pink-600/20 text-pink-400 flex items-center justify-center text-xs font-bold">${index + 1}</span>
-                        Personne ${index + 1}
-                    </span>
+                    <span class="text-sm font-bold text-gray-300 flex items-center gap-2"><span class="w-6 h-6 rounded-full bg-pink-600/20 text-pink-400 flex items-center justify-center text-xs font-bold">${index + 1}</span> Personne ${index + 1}</span>
                     ${index >= 2 ? `<button onclick="removeParticipant(${index})" class="text-gray-500 hover:text-red-400 text-lg transition-colors" title="Supprimer">✕</button>` : ''}
                 </div>
                 <div class="space-y-2">
-                    <input type="text"
-                           id="address-${index}"
-                           placeholder="Ex: 10 rue de la République, Lyon"
-                           class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500/30 transition-all"
-                           autocomplete="off">
-                    <select id="transport-${index}"
-                            class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-sm text-gray-200 focus:outline-none focus:border-pink-500 transition-all">
+                    <input type="text" id="address-${index}" placeholder="Ex: 10 rue de la République, Lyon" class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500/30 transition-all" autocomplete="off">
+                    <select id="transport-${index}" class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-sm text-gray-200 focus:outline-none focus:border-pink-500 transition-all">
                         <option value="walking">🚶 À pied (poids: 4.0)</option>
                         <option value="transit">🚇 Métro/Bus (poids: 2.0)</option>
                         <option value="cycling">🚲 Vélo (poids: 1.5)</option>
@@ -401,41 +299,27 @@
                     </select>
                 </div>
             `;
-
             container.appendChild(row);
         }
 
         function removeParticipant(index) {
             const row = document.getElementById(`participant-row-${index}`);
-            if (row) {
-                row.remove();
-                reindexParticipants();
-            }
+            if (row) { row.remove(); reindexParticipants(); }
         }
 
         function reindexParticipants() {
-            const container = document.getElementById('participants-container');
-            const rows = container.querySelectorAll('[id^="participant-row-"]');
+            const rows = document.getElementById('participants-container').querySelectorAll('[id^="participant-row-"]');
             rows.forEach((row, i) => {
                 row.id = `participant-row-${i}`;
-                const numSpan = row.querySelector('.w-6.h-6');
-                if (numSpan) numSpan.textContent = String(i + 1);
-                const titleSpan = row.querySelector('span.font-bold.text-gray-300');
-                if (titleSpan) {
-                    titleSpan.innerHTML = `<span class="w-6 h-6 rounded-full bg-pink-600/20 text-pink-400 flex items-center justify-center text-xs font-bold">${i + 1}</span> Personne ${i + 1}`;
-                }
-                const input = row.querySelector('input[type="text"]');
-                const select = row.querySelector('select');
-                if (input) input.id = `address-${i}`;
-                if (select) select.id = `transport-${i}`;
+                row.querySelector('.w-6.h-6').textContent = String(i + 1);
+                row.querySelector('span.font-bold.text-gray-300').innerHTML = `<span class="w-6 h-6 rounded-full bg-pink-600/20 text-pink-400 flex items-center justify-center text-xs font-bold">${i + 1}</span> Personne ${i + 1}`;
+                row.querySelector('input[type="text"]').id = `address-${i}`;
+                row.querySelector('select').id = `transport-${i}`;
                 const removeBtn = row.querySelector('button[onclick]');
                 if (removeBtn && i >= 2) removeBtn.setAttribute('onclick', `removeParticipant(${i})`);
             });
         }
-
-        function getParticipantRowCount() {
-            return document.querySelectorAll('[id^="participant-row-"]').length;
-        }
+        function getParticipantRowCount() { return document.querySelectorAll('[id^="participant-row-"]').length; }
 
         // ============================================================
         // GEOCODING (NOMINATIM)
@@ -444,17 +328,11 @@
         async function geocodeAddress(address) {
             const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1&addressdetails=1`;
             try {
-                const response = await fetch(url, { headers: { 'User-Agent': 'MeetAtTheBar/1.0 (Educational Project)' } });
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const response = await fetch(url, { headers: { 'User-Agent': 'MeetAtTheBar/1.0' } });
                 const data = await response.json();
-                if (data && data.length > 0) {
-                    return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon), displayName: data[0].display_name };
-                }
+                if (data && data.length > 0) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon), displayName: data[0].display_name };
                 return null;
-            } catch (error) {
-                console.error(`Geocoding error for "${address}":`, error);
-                return null;
-            }
+            } catch (error) { return null; }
         }
 
         async function geocodeAllParticipants() {
@@ -464,22 +342,19 @@
                 const addressInput = document.getElementById(`address-${i}`);
                 const transportSelect = document.getElementById(`transport-${i}`);
                 if (!addressInput || !transportSelect) continue;
-
                 const address = addressInput.value.trim();
                 const transport = transportSelect.value;
                 if (!address) continue;
 
                 updateStatus(`🔍 Géocodage de "${address}"...`, 'info');
                 const geoResult = await geocodeAddress(address);
-
                 if (geoResult) {
                     results.push({ address, transport, lat: geoResult.lat, lng: geoResult.lng, name: `Personne ${i + 1}` });
                     updateStatus(`✅ ${address} géocodée`, 'success');
                 } else {
                     updateStatus(`❌ Adresse introuvable: "${address}"`, 'error');
                 }
-
-                if (i < count - 1) await sleep(NOMINATIM_DELAY); // Respecte les CGU OSM
+                if (i < count - 1) await sleep(NOMINATIM_DELAY);
             }
             return results;
         }
@@ -491,13 +366,10 @@
         function calculateBarycenter(points) {
             const validPoints = points.map(p => ({ lat: p.lat, lng: p.lng, weight: TRANSPORT_WEIGHTS[p.transport] || 1.0 }));
             if (validPoints.length === 0) return null;
-
             const totalWeight = validPoints.reduce((sum, p) => sum + p.weight, 0);
             if (totalWeight === 0) return null;
-
             const weightedLat = validPoints.reduce((sum, p) => sum + (p.lat * p.weight), 0);
             const weightedLng = validPoints.reduce((sum, p) => sum + (p.lng * p.weight), 0);
-
             return { lat: weightedLat / totalWeight, lng: weightedLng / totalWeight };
         }
 
@@ -506,20 +378,20 @@
         // ============================================================
 
         async function searchBars(lat, lng, radius) {
+            // CORRECTION DU BUG "PUBLIC_BOOKCASE" : 
+            // On utilise "^(bar|pub|biergarten|cafe)$" pour imposer que le mot soit exact, 
+            // sinon le mot "pub" matche les mots comme "public_bookcase" !
             const overpassQuery = `
                 [out:json][timeout:25];
                 (
-                  node["amenity"~"bar|pub|biergarten|cafe"](around:${radius},${lat},${lng});
-                  way["amenity"~"bar|pub|biergarten|cafe"](around:${radius},${lat},${lng});
-                  relation["amenity"~"bar|pub|biergarten|cafe"](around:${radius},${lat},${lng});
+                  node["amenity"~"^(bar|pub|biergarten|cafe)$"](around:${radius},${lat},${lng});
+                  way["amenity"~"^(bar|pub|biergarten|cafe)$"](around:${radius},${lat},${lng});
+                  relation["amenity"~"^(bar|pub|biergarten|cafe)$"](around:${radius},${lat},${lng});
                 );
                 out center body 50;
             `;
 
-            const overpassEndpoints = [
-                'https://overpass-api.de/api/interpreter',
-                'https://overpass.kumi.systems/api/interpreter'
-            ];
+            const overpassEndpoints = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
 
             for (let i = 0; i < overpassEndpoints.length; i++) {
                 try {
@@ -529,13 +401,9 @@
                         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                         body: `data=${encodeURIComponent(overpassQuery)}`
                     });
-
                     if (!response.ok) throw new Error(`HTTP ${response.status}`);
                     const data = await response.json();
-
-                    if (data.elements && data.elements.length > 0) {
-                        return parseOverpassResults(data.elements);
-                    }
+                    if (data.elements && data.elements.length > 0) return parseOverpassResults(data.elements);
                 } catch (error) {
                     console.warn(`Overpass endpoint failed:`, error);
                     if (i < overpassEndpoints.length - 1) await sleep(1000);
@@ -550,37 +418,24 @@
                 const lat = el.lat || (el.center ? el.center.lat : null);
                 const lng = el.lon || (el.center ? el.center.lon : null);
                 if (lat === null || lng === null) return;
-                
                 const tags = el.tags || {};
                 bars.push({
-                    id: el.id,
-                    lat: lat,
-                    lng: lng,
-                    name: tags.name || 'Nom inconnu',
-                    type: tags.amenity || 'bar',
-                    opening_hours: tags.opening_hours || null,
-                    happy_hours: tags.happy_hours || null,
+                    id: el.id, lat: lat, lng: lng,
+                    name: tags.name || 'Nom inconnu', type: tags.amenity || 'bar',
+                    opening_hours: tags.opening_hours || null, happy_hours: tags.happy_hours || null,
                     price: tags.charge || tags.price || tags.fee || null
                 });
             });
             return bars;
         }
 
-        // ============================================================
-        // DISTANCE CALCULATION
-        // ============================================================
-
         function haversineDistance(lat1, lng1, lat2, lng2) {
             const R = 6371000;
-            const dLat = toRad(lat2 - lat1);
-            const dLng = toRad(lng2 - lng1);
-            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-                      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+            const dLat = toRad(lat2 - lat1); const dLng = toRad(lng2 - lng1);
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
             const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
             return R * c;
         }
-
         function toRad(deg) { return deg * (Math.PI / 180); }
 
         // ============================================================
@@ -588,11 +443,7 @@
         // ============================================================
 
         async function findMeetingPoint() {
-            clearMap();
-            hideStatus();
-            document.getElementById('results-summary').classList.add('hidden');
-            document.getElementById('map-overlay').classList.add('hidden');
-
+            clearMap(); hideStatus(); document.getElementById('results-summary').classList.add('hidden'); document.getElementById('map-overlay').classList.add('hidden');
             setLoading(true);
 
             try {
@@ -601,23 +452,19 @@
                 const validParticipants = participants.filter(p => p.lat !== null && p.lng !== null);
 
                 if (validParticipants.length < 2) {
-                    updateStatus('⚠️ Au moins 2 adresses valides sont requises.', 'error');
-                    setLoading(false);
-                    return;
+                    updateStatus('⚠️ Au moins 2 adresses valides sont requises.', 'error'); setLoading(false); return;
                 }
 
                 updateStatus('⚖️ Calcul du point d\'équidistance pondéré...', 'info');
                 const center = calculateBarycenter(validParticipants);
 
-                if (!center) {
-                    updateStatus('❌ Impossible de calculer le centre.', 'error');
-                    setLoading(false);
-                    return;
-                }
+                if (!center) { updateStatus('❌ Impossible de calculer le centre.', 'error'); setLoading(false); return; }
 
                 addCenterMarker(center.lat, center.lng);
                 addParticipantMarkers(validParticipants);
                 
+                // Force le rafraichissement de la carte mobile avant le zoom
+                map.invalidateSize();
                 map.setView([center.lat, center.lng], 14, { animate: true });
                 document.getElementById('map-overlay').classList.remove('hidden');
 
@@ -626,40 +473,23 @@
 
                 if (bars.length === 0) {
                     updateStatus('⚠️ Aucun bar trouvé. Essayez d\'élargir la zone ou d\'utiliser d\'autres adresses.', 'warning');
-                    displayResultsSummary(center, [], validParticipants);
-                    setLoading(false);
-                    return;
+                    displayResultsSummary(center, [], validParticipants); setLoading(false); return;
                 }
 
                 updateStatus('📊 Calcul des distances et classement...', 'info');
                 
-                const barsWithDistance = bars.map(bar => ({
-                    ...bar,
-                    distance: haversineDistance(center.lat, center.lng, bar.lat, bar.lng)
-                }));
-
-                const topBars = barsWithDistance
-                    .sort((a, b) => a.distance - b.distance)
-                    .slice(0, MAX_BARS);
+                const barsWithDistance = bars.map(bar => ({ ...bar, distance: haversineDistance(center.lat, center.lng, bar.lat, bar.lng) }));
+                const topBars = barsWithDistance.sort((a, b) => a.distance - b.distance).slice(0, MAX_BARS);
 
                 addBarMarkers(topBars, center);
                 displayResultsSummary(center, topBars, validParticipants);
-
                 updateStatus(`🎉 ${topBars.length} bar(s) idéal(aux) trouvé(s) !`, 'success');
 
                 const allLats = validParticipants.map(p => p.lat).concat(topBars.map(b => b.lat));
                 const allLngs = validParticipants.map(p => p.lng).concat(topBars.map(b => b.lng));
-                map.fitBounds([
-                    [Math.min(...allLats), Math.min(...allLngs)],
-                    [Math.max(...allLats), Math.max(...allLngs)]
-                ], { padding: [50, 50] });
+                map.fitBounds([ [Math.min(...allLats), Math.min(...allLngs)], [Math.max(...allLats), Math.max(...allLngs)] ], { padding: [50, 50] });
 
-            } catch (error) {
-                console.error('Fatal error:', error);
-                updateStatus(`❌ Erreur: ${error.message}`, 'error');
-            } finally {
-                setLoading(false);
-            }
+            } catch (error) { updateStatus(`❌ Erreur: ${error.message}`, 'error'); } finally { setLoading(false); }
         }
 
         // ============================================================
@@ -667,65 +497,24 @@
         // ============================================================
 
         function addCenterMarker(lat, lng) {
-            const centerIcon = L.divIcon({
-                className: 'pulse-marker',
-                html: '<div style="width:20px;height:20px;background:#ec4899;border-radius:50%;border:3px solid white;box-shadow:0 0 15px rgba(236,72,153,0.6);"></div>',
-                iconSize: [20, 20],
-                iconAnchor: [10, 10]
-            });
-
-            const popupHtml = `
-                <div class="bar-name text-center mb-2">🎯 Point de RDV Calculé</div>
-                <div class="text-gray-300 text-xs mb-1"><strong>Lat:</strong> ${lat.toFixed(6)}</div>
-                <div class="text-gray-300 text-xs mb-3"><strong>Lng:</strong> ${lng.toFixed(6)}</div>
-                ${generateGoogleMapsBtn(lat, lng, "📍 Ouvrir ce point dans Google Maps")}
-            `;
-
-            const marker = L.marker([lat, lng], { icon: centerIcon })
-                .addTo(map)
-                .bindPopup(popupHtml);
-
+            const centerIcon = L.divIcon({ className: 'pulse-marker', html: '<div style="width:20px;height:20px;background:#ec4899;border-radius:50%;border:3px solid white;box-shadow:0 0 15px rgba(236,72,153,0.6);"></div>', iconSize: [20, 20], iconAnchor: [10, 10] });
+            const popupHtml = `<div class="bar-name text-center mb-2">🎯 Point de RDV Calculé</div><div class="text-gray-300 text-xs mb-1"><strong>Lat:</strong> ${lat.toFixed(6)}</div><div class="text-gray-300 text-xs mb-3"><strong>Lng:</strong> ${lng.toFixed(6)}</div>${generateGoogleMapsBtn(lat, lng, "📍 Ouvrir ce point dans Google Maps")}`;
+            const marker = L.marker([lat, lng], { icon: centerIcon }).addTo(map).bindPopup(popupHtml);
             markers.push(marker);
-
-            searchCircle = L.circle([lat, lng], {
-                radius: BAR_SEARCH_RADIUS,
-                color: '#ec4899',
-                fillColor: '#ec4899',
-                fillOpacity: 0.03,
-                weight: 1,
-                dashArray: '5, 10'
-            }).addTo(map);
+            searchCircle = L.circle([lat, lng], { radius: BAR_SEARCH_RADIUS, color: '#ec4899', fillColor: '#ec4899', fillOpacity: 0.03, weight: 1, dashArray: '5, 10' }).addTo(map);
         }
 
         function addParticipantMarkers(points) {
             points.forEach(p => {
                 const info = TRANSPORT_LABELS[p.transport] || { icon: '📍', label: '?' };
                 const weight = TRANSPORT_WEIGHTS[p.transport] || 1.0;
-
-                const icon = L.divIcon({
-                    className: '',
-                    html: `<div style="background:#374151;border:2px solid #6b7280;border-radius:8px;padding:2px 6px;font-size:14px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.3);">${info.icon}</div>`,
-                    iconSize: [30, 24],
-                    iconAnchor: [15, 12]
-                });
-
-                const marker = L.marker([p.lat, p.lng], { icon: icon })
-                    .addTo(map)
-                    .bindPopup(`
-                        <div class="bar-name">${p.name}</div>
-                        <div class="text-xs text-gray-300 mb-1"><strong>Adresse:</strong> ${p.address}</div>
-                        <div class="text-xs text-gray-300 mb-1"><strong>Transport:</strong> ${info.icon} ${info.label}</div>
-                        <div class="text-xs text-gray-300"><strong>Pondération:</strong> ${weight.toFixed(1)}</div>
-                    `);
-
+                const icon = L.divIcon({ className: '', html: `<div style="background:#374151;border:2px solid #6b7280;border-radius:8px;padding:2px 6px;font-size:14px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.3);">${info.icon}</div>`, iconSize: [30, 24], iconAnchor: [15, 12] });
+                const marker = L.marker([p.lat, p.lng], { icon: icon }).addTo(map).bindPopup(`<div class="bar-name">${p.name}</div><div class="text-xs text-gray-300 mb-1"><strong>Adresse:</strong> ${p.address}</div><div class="text-xs text-gray-300 mb-1"><strong>Transport:</strong> ${info.icon} ${info.label}</div><div class="text-xs text-gray-300"><strong>Pondération:</strong> ${weight.toFixed(1)}</div>`);
                 markers.push(marker);
 
                 const center = calculateBarycenter(points);
                 if (center) {
-                    const line = L.polyline(
-                        [[p.lat, p.lng], [center.lat, center.lng]],
-                        { color: '#9ca3af', weight: 1.5, opacity: 0.4, dashArray: '5, 10' }
-                    ).addTo(map);
+                    const line = L.polyline([[p.lat, p.lng], [center.lat, center.lng]], { color: '#9ca3af', weight: 1.5, opacity: 0.4, dashArray: '5, 10' }).addTo(map);
                     markers.push(line);
                 }
             });
@@ -733,35 +522,14 @@
 
         function addBarMarkers(bars, center) {
             const barIcons = ['🥇', '🥈', '🥉'];
-
             bars.forEach((bar, index) => {
-                const icon = L.divIcon({
-                    className: '',
-                    html: `<div style="background:#1f2937;border:2px solid #ec4899;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 4px 12px rgba(236,72,153,0.4);">${barIcons[index] || '🍺'}</div>`,
-                    iconSize: [36, 36],
-                    iconAnchor: [18, 18]
-                });
-
+                const icon = L.divIcon({ className: '', html: `<div style="background:#1f2937;border:2px solid #ec4899;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 4px 12px rgba(236,72,153,0.4);">${barIcons[index] || '🍺'}</div>`, iconSize: [36, 36], iconAnchor: [18, 18] });
                 const distanceKm = (bar.distance / 1000).toFixed(2);
-
-                const popupHtml = `
-                    <div class="bar-name">${barIcons[index] || '🍺'} ${bar.name}</div>
-                    ${generateBarDetailsHTML(bar)}
-                    <div class="bar-distance">📏 Distance du RDV: ${distanceKm} km</div>
-                    ${generateGoogleMapsBtn(bar.lat, bar.lng, "📍 Voir sur Google Maps")}
-                `;
-
-                const marker = L.marker([bar.lat, bar.lng], { icon: icon })
-                    .addTo(map)
-                    .bindPopup(popupHtml);
-
+                const popupHtml = `<div class="bar-name">${barIcons[index] || '🍺'} ${bar.name}</div>${generateBarDetailsHTML(bar)}<div class="bar-distance">📏 Distance du RDV: ${distanceKm} km</div>${generateGoogleMapsBtn(bar.lat, bar.lng, "📍 Voir sur Google Maps")}`;
+                const marker = L.marker([bar.lat, bar.lng], { icon: icon }).addTo(map).bindPopup(popupHtml);
                 markers.push(marker);
             });
         }
-
-        // ============================================================
-        // DISPLAY RESULTS
-        // ============================================================
 
         function displayResultsSummary(center, bars, participants) {
             const summaryEl = document.getElementById('results-summary');
@@ -769,7 +537,6 @@
             const barsList = document.getElementById('bars-list');
 
             summaryEl.classList.remove('hidden');
-
             centerInfo.innerHTML = `
                 <div class="grid grid-cols-2 gap-2 text-xs mb-2">
                     <div class="bg-gray-800 rounded p-2 border border-gray-600"><strong>Lat:</strong> <span class="text-pink-400">${center.lat.toFixed(5)}</span></div>
@@ -777,16 +544,12 @@
                 </div>
                 <div class="text-[11px] text-gray-400 mt-2 bg-gray-800/50 p-2 rounded">
                     <strong>Pondérations appliquées :</strong><br/>
-                    ${participants.map(p => {
-                        const info = TRANSPORT_LABELS[p.transport];
-                        return `${info ? info.icon : ''} ${p.name} (${TRANSPORT_WEIGHTS[p.transport] || 1})`;
-                    }).join(' • ')}
+                    ${participants.map(p => { const info = TRANSPORT_LABELS[p.transport]; return `${info ? info.icon : ''} ${p.name} (${TRANSPORT_WEIGHTS[p.transport] || 1})`; }).join(' • ')}
                 </div>
                 ${generateGoogleMapsBtn(center.lat, center.lng, "📍 Ouvrir le point de RDV dans Google Maps")}
             `;
 
             const barIcons = ['🥇', '🥈', '🥉'];
-            
             if (bars.length > 0) {
                 barsList.innerHTML = bars.map((bar, i) => `
                     <div class="bg-gray-700/40 rounded-xl p-4 border border-gray-600/60 hover:border-pink-500/50 transition-colors shadow-sm">
@@ -794,16 +557,10 @@
                             <h4 class="text-base font-bold text-gray-100 truncate pr-2 flex items-center gap-2">
                                 <span class="text-xl">${barIcons[i] || '🍺'}</span> ${bar.name}
                             </h4>
-                            <span class="text-xs font-bold text-pink-400 bg-pink-500/10 px-2 py-1 rounded-lg whitespace-nowrap">
-                                ${(bar.distance / 1000).toFixed(2)} km
-                            </span>
+                            <span class="text-xs font-bold text-pink-400 bg-pink-500/10 px-2 py-1 rounded-lg whitespace-nowrap">${(bar.distance / 1000).toFixed(2)} km</span>
                         </div>
-                        
                         ${generateBarDetailsHTML(bar)}
-                        
-                        <div class="mt-4">
-                            ${generateGoogleMapsBtn(bar.lat, bar.lng, "📍 Voir ce bar dans Google Maps")}
-                        </div>
+                        <div class="mt-4">${generateGoogleMapsBtn(bar.lat, bar.lng, "📍 Voir ce bar dans Google Maps")}</div>
                     </div>
                 `).join('');
             } else {
@@ -813,22 +570,12 @@
 
         function updateStatus(message, type) {
             const area = document.getElementById('status-area');
-            const colors = {
-                'info': 'text-blue-400 border-blue-500/30 bg-blue-500/10',
-                'success': 'text-green-400 border-green-500/30 bg-green-500/10',
-                'error': 'text-red-400 border-red-500/30 bg-red-500/10',
-                'warning': 'text-yellow-400 border-yellow-500/30 bg-yellow-500/10'
-            };
-
+            const colors = { 'info': 'text-blue-400 border-blue-500/30 bg-blue-500/10', 'success': 'text-green-400 border-green-500/30 bg-green-500/10', 'error': 'text-red-400 border-red-500/30 bg-red-500/10', 'warning': 'text-yellow-400 border-yellow-500/30 bg-yellow-500/10' };
             const div = document.createElement('div');
             div.className = `text-xs px-3 py-2 rounded-lg border ${colors[type]} transition-opacity duration-500 font-medium`;
             div.textContent = message;
             area.appendChild(div);
-
-            setTimeout(() => {
-                div.style.opacity = '0';
-                setTimeout(() => div.remove(), 500); 
-            }, 5000);
+            setTimeout(() => { div.style.opacity = '0'; setTimeout(() => div.remove(), 500); }, 5000);
         }
     </script>
 </body>
